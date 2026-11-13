@@ -1,0 +1,96 @@
+[
+  {
+    "name": "bun-dev",
+    "source": "built-in",
+    "description": "Bun runtime development profile",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "default",
+    "source": "built-in",
+    "description": "Default conservative base profile",
+    "extends": []
+  },
+  {
+    "name": "go-dev",
+    "source": "built-in",
+    "description": "Go SDK development profile with GOPATH and module support",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "java-dev",
+    "source": "built-in",
+    "description": "Java SDK development profile with SDKMAN, Maven, and Gradle support",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "linux-host-compat",
+    "source": "built-in",
+    "description": "Linux compatibility profile for host runtime, sysfs, and temp access",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "mise-dev",
+    "source": "built-in",
+    "description": "Mise: dev tools, env vars, task runner",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "node-dev",
+    "source": "built-in",
+    "description": "Node.js SDK development profile with nvm, fnm, pnpm, and npm support",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "python-dev",
+    "source": "built-in",
+    "description": "Python SDK development profile with pyenv, conda, and pip support",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "rust-dev",
+    "source": "built-in",
+    "description": "Rust SDK development profile with cargo and rustup support",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "nolabs-ai/claude",
+    "source": "pack",
+    "description": "Anthropic Claude Code CLI agent",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "nolabs-ai/opencode",
+    "source": "pack",
+    "description": "OpenCode v2.1.0+ AI coding assistant",
+    "extends": [
+      "default"
+    ]
+  },
+  {
+    "name": "opencode",
+    "source": "user",
+    "description": "Runtime-discovered path additions for opencode",
+    "extends": [
+      "nolabs-ai/opencode"
+    ]
+  }
+]

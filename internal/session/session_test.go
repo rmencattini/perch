@@ -1,0 +1,45 @@
+package session
+
+import (
+	"testing"
+
+	"perch/internal/state"
+	"perch/internal/status"
+	"perch/internal/tmux"
+)
+
+func TestJoin(t *testing.T) {
+	st := &state.State{Sessions: map[string]state.Meta{
+		"b": {Dir: "/b", Profile: "p", Created: 2},
+		"a": {Dir: "/a", Created: 1},
+		"c": {Created: 3},
+	}}
+	st.CloseTab("c")
+	ws := []tmux.Window{
+		{ID: "@1", Name: "b"}, {ID: "@2", Name: "a"}, {ID: "@3", Name: "c"},
+		{ID: "@4", Name: "dead", Dead: true}, {ID: "@5", Name: "stranger"},
+	}
+	tails := map[string]string{"@1": "Do you want to proceed?", "@2": "esc to interrupt", "@3": "esc to interrupt"}
+	got := Join(ws, st, func(id string) string { return tails[id] })
+
+	want := []struct {
+		name string
+		st   status.Status
+	}{
+		{"stranger", status.Idle}, // no state: Created 0 sorts first
+		{"a", status.Running},
+		{"b", status.NeedsInput},
+		{"c", status.TabClosed}, // closed beats live status
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d sessions: %+v", len(got), got)
+	}
+	for i, w := range want {
+		if got[i].Name != w.name || got[i].Status != w.st {
+			t.Errorf("[%d] = %s/%v, want %s/%v", i, got[i].Name, got[i].Status, w.name, w.st)
+		}
+	}
+	if got[2].Dir != "/b" || got[2].Profile != "p" || got[2].WindowID != "@1" {
+		t.Errorf("metadata not joined: %+v", got[2])
+	}
+}
