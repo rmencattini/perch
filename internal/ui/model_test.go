@@ -52,6 +52,8 @@ func (f *fakeBackend) List() ([]session.Session, error) {
 
 func (f *fakeBackend) Preview(s session.Session) string { return "pane of " + s.Name }
 
+func (f *fakeBackend) Diff(s session.Session) string { return "diff of " + s.Name }
+
 func (f *fakeBackend) Attach(s session.Session) (*exec.Cmd, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -163,7 +165,7 @@ func TestNavigation(t *testing.T) {
 	key(tm, "j")
 	key(tm, "j")
 	key(tm, "j") // past the end: stays on gamma
-	waitFor(t, tm, "pane of gamma")
+	waitFor(t, tm, "diff of gamma")
 	key(tm, "k")
 	waitFor(t, tm, "pane of beta")
 	m := quit(t, tm)
@@ -259,8 +261,8 @@ func TestKillConfirm(t *testing.T) {
 func TestMouseClickSelects(t *testing.T) {
 	tm := start(t, newFake())
 	waitFor(t, tm, "pane of alpha")
-	tm.Send(tea.MouseMsg{X: 3, Y: headerLines + 2, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
-	waitFor(t, tm, "pane of gamma")
+	tm.Send(tea.MouseMsg{X: 3, Y: headerLines + listTop + 2*rowHeight, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	waitFor(t, tm, "diff of gamma")
 	tm.Send(tea.MouseMsg{X: 90, Y: headerLines, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}) // preview area: ignored
 	m := quit(t, tm)
 	if s, _ := m.selected(); s.Name != "gamma" {
@@ -374,5 +376,23 @@ func TestStaleRefreshDoesNotMoveCursor(t *testing.T) {
 		if cmd == nil {
 			t.Error("stale preview should trigger a fresh refresh")
 		}
+	}
+}
+
+// An idle session has nothing new in its pane, so the panel opens on the diff;
+// a running one stays on the pane. tab flips either.
+func TestDiffTab(t *testing.T) {
+	f := newFake()
+	m := drive(New(f), refreshMsg{sessions: f.sessions, selected: "alpha", preview: "pane of alpha"})
+	if m.diffTab(f.sessions[0]) || !m.diffTab(f.sessions[2]) {
+		t.Fatal("running opens on the pane, idle on the diff")
+	}
+	m = drive(m, special(tea.KeyTab))
+	if !m.diffTab(f.sessions[0]) {
+		t.Error("tab on a running session should show its diff")
+	}
+	m = drive(m, typ("j"), typ("j"), special(tea.KeyTab))
+	if m.diffTab(f.sessions[2]) {
+		t.Error("tab on an idle session should show its pane")
 	}
 }

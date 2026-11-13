@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"perch/internal/nono"
@@ -23,6 +24,8 @@ import (
 type Backend interface {
 	List() ([]session.Session, error)
 	Preview(s session.Session) string
+	// Diff is the uncommitted change in the session's folder ("" when there is none).
+	Diff(s session.Session) string
 	// Attach reopens a closed tab, selects the window and returns the attach command.
 	Attach(s session.Session) (*exec.Cmd, error)
 	CloseTab(name string) error
@@ -67,8 +70,13 @@ type TmuxBackend struct {
 	Now    func() time.Time
 
 	psAt time.Time
-	ps   []nono.PsEntry
-	hint string
+
+	diffMu  sync.Mutex // the view refreshes every second: git runs at most every diffEvery
+	diffDir string
+	diffAt  time.Time
+	diffOut string
+	ps      []nono.PsEntry
+	hint    string
 }
 
 const psEvery = 3 * time.Second
@@ -121,6 +129,42 @@ func (b *TmuxBackend) now() time.Time {
 		return b.Now()
 	}
 	return time.Now()
+}
+
+const (
+	diffEvery = 3 * time.Second
+	diffLines = 400
+)
+
+// Diff is `git diff HEAD` of the session folder plus its untracked files. A
+// folder that is not a git repo, or has no commit yet, gives "".
+func (b *TmuxBackend) Diff(s session.Session) string {
+	if s.Dir == "" {
+		return ""
+	}
+	b.diffMu.Lock()
+	defer b.diffMu.Unlock()
+	if b.diffDir == s.Dir && b.now().Sub(b.diffAt) < diffEvery {
+		return b.diffOut
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	defer cancel()
+	git := func(args ...string) string {
+		out, err := exec.CommandContext(ctx, "git", append([]string{"-C", s.Dir, "-c", "core.quotepath=false"}, args...)...).Output()
+		if err != nil {
+			return ""
+		}
+		return string(out)
+	}
+	out := git("diff", "HEAD", "--no-color")
+	if untracked := strings.Fields(git("ls-files", "--others", "--exclude-standard")); len(untracked) > 0 {
+		out += "\nuntracked:\n+ " + strings.Join(untracked, "\n+ ") + "\n"
+	}
+	if lines := strings.Split(out, "\n"); len(lines) > diffLines {
+		out = strings.Join(lines[:diffLines], "\n") + fmt.Sprintf("\n… %d more lines", len(lines)-diffLines)
+	}
+	b.diffDir, b.diffAt, b.diffOut = s.Dir, b.now(), out
+	return out
 }
 
 func (b *TmuxBackend) Usage() usage.Summary { return usage.Load(b.UsageDir, b.now()) }

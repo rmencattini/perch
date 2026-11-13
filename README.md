@@ -21,10 +21,17 @@ Needs `tmux` and `nono` on your PATH.
 | `x` | close the tab. The session **keeps running** |
 | `o` | reopen the last closed tab |
 | `K` | kill: asks, then `nono stop <name>` and drops the window. Only this stops a session |
-| `b` | show / hide the preview |
+| `tab` | switch the panel between Preview and Diff |
+| `b` | show / hide the panel |
 | `q` | quit (sessions keep running) |
 
 Mouse: click a row to select it.
+
+## Panel: Preview and Diff
+
+The right panel has two tabs. **Preview** is the live pane. **Diff** is `git diff HEAD` of the session folder plus its untracked files (first 400 lines).
+A session that is idle or whose tab is closed opens on **Diff**, since its pane has nothing new. A running one opens on Preview. `tab` overrides this.
+A folder that is not a git repo shows "no changes".
 
 Status symbols (readable without color):
 `●` running · `!` needs input · `○` idle · `⊘` tab closed · `◌` detached · `◐` attached in another terminal tab

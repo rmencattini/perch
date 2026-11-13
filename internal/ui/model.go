@@ -21,7 +21,9 @@ import (
 
 const (
 	refreshEvery = time.Second
-	headerLines  = 2 // title + rule; list rows start right after
+	headerLines  = 2 // banner + blank line; the body starts right after
+	listTop      = 2 // "Sessions" banner + blank line above the first row
+	rowHeight    = 3 // title, subtitle, blank line
 	footerLines  = 2 // message + key bar
 	listMinWidth = 32
 )
@@ -32,6 +34,7 @@ type (
 		sessions []session.Session
 		selected string // name the preview belongs to
 		preview  string
+		diff     string
 		usage    usage.Summary
 		hint     string
 		err      error
@@ -57,6 +60,9 @@ type Model struct {
 	sessions    []session.Session
 	cursor      int
 	preview     string
+	diff        string // git diff of the selected session's folder, read only while the Diff tab shows
+	tab         int    // 0 preview, 1 diff; only used once the user pressed tab
+	tabSet      bool
 	showPreview bool
 	confirmKill bool
 	dlg         *dialog // new-session dialog, nil when closed
@@ -98,7 +104,13 @@ func (m Model) refresh() tea.Cmd {
 	if m.want != "" {
 		sel.Name = m.want
 	}
-	b := m.b
+	b, wantDiff := m.b, m.diffTab
+	fill := func(out *refreshMsg, s session.Session) {
+		out.selected, out.preview = s.Name, b.Preview(s)
+		if wantDiff(s) {
+			out.diff = b.Diff(s)
+		}
+	}
 	return func() tea.Msg {
 		ss, err := b.List()
 		if err != nil {
@@ -107,12 +119,12 @@ func (m Model) refresh() tea.Cmd {
 		out := refreshMsg{sessions: ss, usage: b.Usage(), hint: b.DetachHint()}
 		for _, s := range ss {
 			if s.Name == sel.Name {
-				out.selected, out.preview = s.Name, b.Preview(s)
+				fill(&out, s)
 				return out
 			}
 		}
 		if len(ss) > 0 {
-			out.selected, out.preview = ss[0].Name, b.Preview(ss[0])
+			fill(&out, ss[0])
 		}
 		return out
 	}
@@ -146,7 +158,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.want = ""
 		}
 		if msg.selected == keep.Name {
-			m.preview = msg.preview
+			m.preview, m.diff = msg.preview, msg.diff
 		} else {
 			return m, m.refresh() // preview is for a row the user left: fetch the right one
 		}
@@ -234,6 +246,15 @@ func (m Model) onKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.move(-1)
 	case "b":
 		m.showPreview = !m.showPreview
+	case "tab":
+		cur, _ := m.selected()
+		showingDiff := m.diffTab(cur) // ask before tabSet changes the answer
+		m.tabSet = true
+		m.tab = 1
+		if showingDiff {
+			m.tab = 0
+		}
+		return m, m.refresh()
 	case "n":
 		b := m.b
 		return m, func() tea.Msg {
@@ -378,15 +399,15 @@ func (m Model) rowWidth() int {
 			st = w
 		}
 	}
-	return 2 + 1 + 1 + m.nameWidth() + 1 + st
+	return 5 + 2 + m.nameWidth() + 2 + st // " 1. " + symbol + name + gap + status
 }
 
 func (m Model) onMouse(e tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.confirmKill || m.dlg != nil || e.Action != tea.MouseActionPress || e.Button != tea.MouseButtonLeft {
 		return m, nil
 	}
-	row := e.Y - headerLines
-	if e.X >= m.listWidth() || row < 0 || row >= len(m.sessions) {
+	row := (e.Y - headerLines - listTop) / rowHeight
+	if e.Y-headerLines-listTop < 0 || e.X >= m.listWidth() || row >= len(m.sessions) {
 		return m, nil
 	}
 	m.cursor = row
@@ -397,13 +418,23 @@ var (
 	bold   = lipgloss.NewStyle().Bold(true)
 	dim    = lipgloss.NewStyle().Faint(true)
 	errSty = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	selSty = lipgloss.NewStyle().Reverse(true)
-	stSty  = map[status.Status]lipgloss.Style{
+
+	// Palette follows Claude Squad: slate banner, purple frame, soft grey text.
+	accent    = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
+	bannerSty = lipgloss.NewStyle().Background(lipgloss.Color("62")).Foreground(lipgloss.Color("230"))
+	frameSty  = lipgloss.NewStyle().Foreground(accent)
+	titleSty  = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"})
+	subSty    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
+	selSty    = lipgloss.NewStyle().Background(lipgloss.Color("#dde4f0")).Foreground(lipgloss.Color("#1a1a1a"))
+	keySty    = lipgloss.NewStyle().Foreground(lipgloss.Color("99"))
+	descSty   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#7A7474", Dark: "#9C9494"})
+	sepSty    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DDDADA", Dark: "#3C3C3C"})
+	stSty     = map[status.Status]lipgloss.Style{
 		status.Detached:   lipgloss.NewStyle().Foreground(lipgloss.Color("6")),
 		status.Elsewhere:  lipgloss.NewStyle().Foreground(lipgloss.Color("6")),
-		status.Running:    lipgloss.NewStyle().Foreground(lipgloss.Color("2")),
+		status.Running:    lipgloss.NewStyle().Foreground(lipgloss.Color("#51bd73")),
 		status.NeedsInput: lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true),
-		status.Idle:       lipgloss.NewStyle(),
+		status.Idle:       lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")),
 		status.TabClosed:  lipgloss.NewStyle().Faint(true),
 	}
 )
@@ -421,7 +452,7 @@ func (m Model) View() string {
 	} else {
 		body = m.listAndPreview(bodyH)
 	}
-	return strings.Join([]string{m.header(), dim.Render(strings.Repeat("─", m.width)), body, m.messageLine(), m.keyBar()}, "\n")
+	return strings.Join([]string{m.header(), "", body, m.messageLine(), m.keyBar()}, "\n")
 }
 
 func (m Model) header() string {
@@ -431,7 +462,7 @@ func (m Model) header() string {
 			waiting++
 		}
 	}
-	h := bold.Render("perch") + dim.Render(fmt.Sprintf("  %d sessions", len(m.sessions)))
+	h := bannerSty.Render(" perch ") + dim.Render(fmt.Sprintf("  %d sessions", len(m.sessions)))
 	if waiting > 0 {
 		h += "  " + stSty[status.NeedsInput].Render(fmt.Sprintf("! %d need input", waiting))
 	}
@@ -480,12 +511,12 @@ func bar(label string, r usage.Reading) string {
 
 func (m Model) listAndPreview(h int) string {
 	lw := m.listWidth()
-	var rows []string
+	rows := []string{" " + bannerSty.Render(" Sessions "), ""}
 	if len(m.sessions) == 0 {
-		rows = []string{dim.Render("no sessions yet")}
+		rows = append(rows, " "+dim.Render("no sessions yet"))
 	}
 	for i, s := range m.sessions {
-		rows = append(rows, m.row(i, s, lw))
+		rows = append(rows, m.row(i, s, lw), "")
 	}
 	list := lipgloss.NewStyle().Width(lw).MaxWidth(lw).Height(h).MaxHeight(h).Render(strings.Join(rows, "\n"))
 	if !m.showPreview {
@@ -495,46 +526,140 @@ func (m Model) listAndPreview(h int) string {
 	if pw < 1 {
 		return list
 	}
-	sep := dim.Render(strings.TrimRight(strings.Repeat("│\n", h), "\n"))
-	return lipgloss.JoinHorizontal(lipgloss.Top, list, sep, m.previewPane(pw, h))
+	return lipgloss.JoinHorizontal(lipgloss.Top, list, " ", m.previewPane(pw, h))
 }
 
+// row is two lines: " 1. ● name   status" and the folder and profile under it.
+// The selected row gets a light bar across the full list width.
 func (m Model) row(i int, s session.Session, w int) string {
-	mark := "  "
-	if i == m.cursor {
-		mark = "▸ "
-	}
 	nw := m.nameWidth()
-	line := fmt.Sprintf("%s%s %-*s %s", mark, s.Status.Symbol(), nw, trunc(s.Name, nw), s.Status)
-	line = trunc(line, w)
-	if i == m.cursor {
-		return selSty.Render(line)
+	st := s.Status.String()
+	head := fmt.Sprintf(" %d. %s %-*s", i+1, s.Status.Symbol(), nw, trunc(s.Name, nw))
+	gap := w - lipgloss.Width(head) - lipgloss.Width(st) - 1
+	if gap < 1 {
+		gap = 1
 	}
-	return stSty[s.Status].Render(line)
+	head = trunc(head+strings.Repeat(" ", gap)+st, w)
+	where := strings.TrimSpace(s.Dir)
+	if where == "" {
+		where = s.NonoID
+	}
+	if s.Profile != "" {
+		where += " · " + s.Profile
+	}
+	sub := trunc("    "+strings.TrimSpace(where), w)
+	line := lipgloss.NewStyle().Width(w).MaxWidth(w)
+	if i == m.cursor {
+		return selSty.Inherit(line).Render(head) + "\n" + selSty.Inherit(line).Render(sub)
+	}
+	// the symbol keeps its status color, the rest stays quiet
+	sym := s.Status.Symbol()
+	if k := strings.Index(head, sym); k >= 0 {
+		head = titleSty.Render(head[:k]) + stSty[s.Status].Render(sym) + titleSty.Render(head[k+len(sym):])
+	} else {
+		head = titleSty.Render(head)
+	}
+	return line.Render(head) + "\n" + line.Render(subSty.Render(sub))
 }
 
 func (m Model) previewPane(w, h int) string {
+	tabs := []string{" Preview ", " Diff "}
+	minW := 2
+	for _, t := range tabs {
+		minW += lipgloss.Width(t) + 2
+	}
 	s, ok := m.selected()
+	if w < minW || h < 5 {
+		return lipgloss.NewStyle().Width(w).MaxWidth(w).Height(h).MaxHeight(h).Render("")
+	}
+	showDiff := ok && m.diffTab(s)
+	active := 0
+	if showDiff {
+		active = 1
+	}
+
+	cw := w - 4 // frame and one space of padding each side
+	rows := h - 4
+	var inner []string
 	if !ok {
-		return lipgloss.NewStyle().Width(w).Height(h).Render(dim.Render("nothing selected"))
+		inner = []string{dim.Render("nothing selected")}
+	} else {
+		inner = append(inner,
+			stSty[s.Status].Bold(true).Render(trunc(s.Status.Symbol()+" "+s.Name, cw)),
+			subSty.Render(trunc(strings.TrimSpace(s.Dir+"  "+s.Profile), cw)))
+		text, tail := m.preview, true // newest pane lines stay in view
+		if showDiff {
+			text, tail = m.diff, false // a diff reads from the top
+			if strings.TrimSpace(text) == "" {
+				text = "no changes in " + s.Dir
+			}
+		}
+		lines := strings.Split(strings.TrimRight(text, "\n "), "\n")
+		cut := lipgloss.NewStyle().MaxWidth(cw)
+		for i, l := range lines {
+			lines[i] = colorLine(l, cut.Render(l))
+		}
+		avail := rows - 2
+		switch {
+		case avail < 1:
+			lines = nil
+		case len(lines) > avail && tail:
+			lines = lines[len(lines)-avail:]
+		case len(lines) > avail:
+			lines = lines[:avail]
+		}
+		inner = append(inner, lines...)
 	}
-	title := stSty[s.Status].Bold(true).Render(trunc(s.Status.Symbol()+" "+s.Name, w))
-	sub := dim.Render(trunc(strings.TrimSpace(s.Dir+"  "+s.Profile), w))
-	text := strings.TrimRight(m.preview, "\n ")
-	lines := strings.Split(text, "\n")
-	cut := lipgloss.NewStyle().MaxWidth(w)
-	for i, l := range lines {
-		lines[i] = colorLine(l, cut.Render(l)) // one row per line, so the newest lines stay in view
+
+	// Tab row: each tab is a small rounded box; the active one opens into the
+	// frame below, the others close with ┴.
+	f := frameSty.Render
+	var top, mid []string
+	box := []rune("╭" + strings.Repeat("─", w-2) + "╮")
+	x := 0
+	for i, t := range tabs {
+		tw := lipgloss.Width(t) + 2
+		l, r := x, x+tw-1
+		edge, label := dim.Render, dim.Render(t)
+		if i == active {
+			edge, label = f, bold.Render(t)
+			box[l], box[r] = '┘', '└'
+			if l == 0 {
+				box[l] = '│'
+			}
+			for c := l + 1; c < r; c++ {
+				box[c] = ' '
+			}
+		} else {
+			box[l], box[r] = '┴', '┴'
+			if l == 0 {
+				box[l] = '├'
+			}
+		}
+		top = append(top, edge("╭"+strings.Repeat("─", tw-2)+"╮"))
+		mid = append(mid, edge("│")+label+edge("│"))
+		x += tw
 	}
-	avail := h - 2
-	if avail < 1 {
-		avail = 1
+	rest := strings.Repeat(" ", w-x)
+	out := []string{strings.Join(top, "") + rest, strings.Join(mid, "") + rest, f(string(box))}
+	for i := 0; i < rows; i++ {
+		line := ""
+		if i < len(inner) {
+			line = inner[i]
+		}
+		out = append(out, f("│")+" "+line+strings.Repeat(" ", cw-lipgloss.Width(line))+" "+f("│"))
 	}
-	if len(lines) > avail {
-		lines = lines[len(lines)-avail:]
+	out = append(out, f("╰"+strings.Repeat("─", w-2)+"╯"))
+	return strings.Join(out, "\n")
+}
+
+// diffTab says whether the panel shows the diff for s. An idle or finished
+// session has nothing new on screen, so it opens on its changes; tab overrides.
+func (m Model) diffTab(s session.Session) bool {
+	if m.tabSet {
+		return m.tab == 1
 	}
-	content := title + "\n" + sub + "\n" + strings.Join(lines, "\n")
-	return lipgloss.NewStyle().Width(w).MaxWidth(w).Height(h).MaxHeight(h).Render(content)
+	return s.Status == status.Idle || s.Status == status.TabClosed
 }
 
 var (
@@ -576,7 +701,7 @@ func colorLine(plain, cut string) string {
 
 func (m Model) killModal(h int) string {
 	s, _ := m.selected()
-	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 3).Render(
+	box := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(accent).Padding(1, 3).Render(
 		bold.Render("Kill "+s.Name+"?") + "\n\n" +
 			"This stops the session for real (nono stop).\n" +
 			"Unsaved work in it is lost.\n\n" +
@@ -591,18 +716,39 @@ func (m Model) messageLine() string {
 	return dim.Render(trunc(m.msg, m.width))
 }
 
+type keyHint struct{ key, desc string }
+
+// hintBar renders groups of key hints, centered: "k desc • k desc │ k desc".
+func (m Model) hintBar(groups ...[]keyHint) string {
+	var gs []string
+	for _, g := range groups {
+		var ps []string
+		for _, h := range g {
+			ps = append(ps, keySty.Render(h.key)+" "+descSty.Render(h.desc))
+		}
+		gs = append(gs, strings.Join(ps, sepSty.Render(" • ")))
+	}
+	bar := lipgloss.NewStyle().MaxWidth(m.width).Render(strings.Join(gs, sepSty.Render(" │ ")))
+	return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, bar)
+}
+
 func (m Model) keyBar() string {
 	if m.confirmKill {
-		return dim.Render("y confirm · n/esc cancel")
+		return m.hintBar([]keyHint{{"y", "confirm"}, {"n/esc", "cancel"}})
 	}
 	if m.dlg != nil {
-		return dim.Render(trunc("tab/↑↓ field · ctrl+f pick folder (fzf) · ←→ profile · space worktree · enter create · esc cancel", m.width))
+		return m.hintBar(
+			[]keyHint{{"tab/↑↓", "field"}, {"←→", "profile"}, {"space", "worktree"}},
+			[]keyHint{{"ctrl+f", "folder (fzf)"}, {"enter", "create"}, {"esc", "cancel"}})
 	}
-	enter := "enter attach"
+	enter := "attach"
 	if m.hint != "" {
 		enter += " (" + m.hint + " back)"
 	}
-	return dim.Render(trunc("j/k move · "+enter+" · n new · x close tab · o reopen · K kill · b preview · q quit", m.width))
+	return m.hintBar(
+		[]keyHint{{"n", "new"}, {"K", "kill"}},
+		[]keyHint{{"enter", enter}, {"x", "close"}, {"o", "reopen"}},
+		[]keyHint{{"tab", "diff"}, {"b", "panel"}, {"q", "quit"}})
 }
 
 func trunc(s string, w int) string {
