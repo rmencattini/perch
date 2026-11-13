@@ -1,4 +1,4 @@
-// Package worktree creates git worktrees under ~/git/worktrees/<repo>/<branch>.
+// Package worktree creates git worktrees under <root>/<repo>/<branch>.
 package worktree
 
 import (
@@ -10,15 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-// DefaultRoot is ~/git/worktrees.
-func DefaultRoot() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, "git", "worktrees"), nil
-}
 
 // ValidateBranch applies the core rules of git check-ref-format.
 func ValidateBranch(b string) error {

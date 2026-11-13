@@ -1,4 +1,4 @@
-// Package state persists perch's own data in ~/.config/perch/state.json.
+// Package state persists perch's own data in <config dir>/state.json.
 // It holds no secrets: only session names, folders and profile names.
 package state
 
@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"perch/internal/config"
 )
 
 const maxRecent = 10
@@ -25,13 +27,13 @@ type State struct {
 	Sessions map[string]Meta `json:"sessions"`
 }
 
-// DefaultPath is ~/.config/perch/state.json.
+// DefaultPath is <config dir>/state.json (~/.config/perch unless XDG_CONFIG_HOME is set).
 func DefaultPath() (string, error) {
-	home, err := os.UserHomeDir()
+	dir, err := config.Dir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "perch", "state.json"), nil
+	return filepath.Join(dir, "state.json"), nil
 }
 
 // Load reads path. A missing file is an empty state, not an error.

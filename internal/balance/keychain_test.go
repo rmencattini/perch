@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-func TestKeychainArgsAndTrim(t *testing.T) {
+func TestSecretArgsAndTrim(t *testing.T) {
 	var got []string
 	run := func(_ context.Context, name string, args ...string) ([]byte, error) {
 		got = append([]string{name}, args...)
 		return []byte("sk-abc\n"), nil
 	}
-	if key := Keychain(context.Background(), run, "my-service", "my-account"); key != "sk-abc" {
+	if key := Secret(context.Background(), run, "darwin", "my-service", "my-account"); key != "sk-abc" {
 		t.Errorf("key = %q", key)
 	}
 	want := []string{"security", "find-generic-password", "-s", "my-service", "-a", "my-account", "-w"}
@@ -26,8 +26,38 @@ func TestKeychainArgsAndTrim(t *testing.T) {
 		t.Errorf("args = %v", got)
 	}
 	fail := func(context.Context, string, ...string) ([]byte, error) { return nil, errors.New("exit 44") }
-	if key := Keychain(context.Background(), fail, "x", ""); key != "" {
+	if key := Secret(context.Background(), fail, "darwin", "x", ""); key != "" {
 		t.Errorf("not found must be empty, got %q", key)
+	}
+}
+
+func TestSecretLinuxUsesSecretTool(t *testing.T) {
+	var got []string
+	run := func(_ context.Context, name string, args ...string) ([]byte, error) {
+		got = append([]string{name}, args...)
+		return []byte("sk-linux\n"), nil
+	}
+	if key := Secret(context.Background(), run, "linux", "svc", "acct"); key != "sk-linux" {
+		t.Errorf("key = %q", key)
+	}
+	want := []string{"secret-tool", "lookup", "service", "svc", "account", "acct"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("args = %v", got)
+	}
+	got = nil
+	Secret(context.Background(), run, "linux", "svc", "")
+	if want := []string{"secret-tool", "lookup", "service", "svc"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("no account: args = %v", got)
+	}
+}
+
+func TestSecretUnsupportedOSNeverRuns(t *testing.T) {
+	run := func(context.Context, string, ...string) ([]byte, error) {
+		t.Error("must not run any command on an unsupported OS")
+		return nil, nil
+	}
+	if key := Secret(context.Background(), run, "windows", "x", "y"); key != "" {
+		t.Errorf("got %q", key)
 	}
 }
 

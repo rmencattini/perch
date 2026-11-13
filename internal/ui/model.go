@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -287,7 +286,7 @@ func (m Model) openDialog(p profilesMsg) Model {
 	if p.err != nil {
 		errText = "nono profile list failed: " + p.err.Error()
 	}
-	m.dlg = newDialog(p.profiles, errText, names, m.b.DefaultDir(), m.home, m.b.Command)
+	m.dlg = newDialog(p.profiles, errText, names, m.b.DefaultDir(), m.home, nono.PickDefault(p.profiles, m.b.DefaultProfile()), m.b.Command)
 	m.msg = ""
 	return m
 }
@@ -297,7 +296,7 @@ func (m Model) onDialogKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case actCancel:
 		m.dlg = nil
 	case actPickFolder:
-		return m, m.pick(Candidates(m.b.Folders(), RepoFolders(filepath.Join(m.home, "git")), m.home))
+		return m, m.pick(Candidates(m.b.Folders(), RepoFolders(m.b.GitRoot()), m.home))
 	case actSubmit:
 		m.dlg.busy = true
 		req, b := m.dlg.request(), m.b
@@ -457,7 +456,7 @@ func (m Model) header() string {
 }
 
 // balanceText is the DeepSeek credit for the header. No key found says so, so a wrong
-// Keychain name is not silent; loading and failures stay short and never quote the key.
+// keyring name is not silent; loading and failures stay short and never quote the key.
 func (m Model) balanceText() string {
 	b := m.balance
 	switch {

@@ -9,7 +9,23 @@ Each session is a window in the tmux session `perch`, started as
 1. `go build -o ~/.local/bin/perch ./cmd/perch`
 2. Run `perch` in a plain terminal, or inside tmux. Inside tmux, `enter` opens the session in a popup, and your prefix + `d` closes only the popup.
 
-Needs `tmux` and `nono` on your PATH.
+Needs `tmux` and `nono` on your PATH, and `fzf` for the folder picker. Works on macOS and Linux.
+Optional: `secret-tool` (libsecret) on Linux, only for the DeepSeek balance.
+
+## Config
+
+Optional file: `~/.config/perch/config.json` (`$XDG_CONFIG_HOME/perch/config.json` when set). Keys you leave out keep the defaults in [`internal/config/config.default.json`](internal/config/config.default.json), which is built into the binary. Copy that file as a template.
+
+| Key | Default | What |
+|---|---|---|
+| `default_profile` | `""` | Profile preselected in the new-session dialog. Empty: the first nono profile with `claude` in its name |
+| `git_root` | `~/git` | Repos listed by the fzf folder picker |
+| `worktree_root` | `<git_root>/worktrees` | Where the Worktree option creates `<repo>/<branch>` |
+| `deepseek.enabled` | `false` | Show the DeepSeek balance in the header |
+| `deepseek.keychain_service` | `perch` | Keyring item service of the DeepSeek key |
+| `deepseek.keychain_account` | `deepseek_api_key` | Keyring item account |
+
+`config.json` is in `.gitignore`: keep your own copy out of the repo.
 
 ## Keys
 
@@ -46,10 +62,10 @@ The key to come back is **your own tmux prefix** (shown in the key bar and in th
 ## New session dialog
 
 - **Name**: letters, digits, `. _ -`. Must be unique.
-- **Folder**: `ctrl+f` opens **fzf** over your recent folders and the git repos under `~/git`. It also opens by itself when you tab onto an empty Folder. You can still type a path (`~` works, `tab` completes). Needs `fzf` on PATH.
+- **Folder**: `ctrl+f` opens **fzf** over your recent folders and the git repos under `git_root`. It also opens by itself when you tab onto an empty Folder. You can still type a path (`~` works, `tab` completes). Needs `fzf` on PATH.
 - **Also allow**: more folders for the same session. Type a path and press `enter` to add it (or `ctrl+f` for fzf). `backspace` on empty text removes the last one. Each folder gets `--allow <dir>` on nono and `--add-dir <dir>` on claude. Leave the text empty and press `enter` to create.
-- **Profile**: `←` `→`. The list comes from `nono profile list`. Default `nolabs-ai/claude`.
-- **Worktree**: `space` to tick. Makes `~/git/worktrees/<repo>/<branch>` (branch created if missing).
+- **Profile**: `←` `→`. The list comes from `nono profile list`. Default: see `default_profile` in Config.
+- **Worktree**: `space` to tick. Makes `<worktree_root>/<repo>/<branch>` (branch created if missing).
 - The exact command is shown before you press `enter`. That is what runs.
 
 ## Usage bars (statusLine)
@@ -74,12 +90,13 @@ Already have a statusLine? Keep it and let perch listen:
 
 ## DeepSeek balance (header)
 
-The header shows `DeepSeek 110.00 CNY` before the usage bars. perch looks for the key in this order:
+Off by default. Set `"deepseek": { "enabled": true }` in the config file and the header shows `DeepSeek 110.00 CNY` before the usage bars. perch looks for the key in this order:
 
 1. the `DEEPSEEK_API_KEY` environment variable of the shell that starts perch;
-2. the macOS Keychain generic password with **service** `sandboxes-auth` and **account** `deepseek_api_key`
-   (`security find-generic-password -s sandboxes-auth -a deepseek_api_key -w`; macOS may ask once to allow access).
-   Other item: set `PERCH_DEEPSEEK_KEYCHAIN` (service) and `PERCH_DEEPSEEK_KEYCHAIN_ACCOUNT` (account).
+2. the system keyring item with the service and account from the config (`deepseek.keychain_service`, `deepseek.keychain_account`):
+   - macOS: `security find-generic-password -s <service> -a <account> -w` (macOS may ask once to allow access);
+   - Linux: `secret-tool lookup service <service> account <account>`. Store it with `secret-tool store --label=perch service <service> account <account>`.
+   Env overrides for the item: `PERCH_DEEPSEEK_KEYCHAIN` (service), `PERCH_DEEPSEEK_KEYCHAIN_ACCOUNT` (account).
 
 - perch asks `GET https://api.deepseek.com/user/balance` (free, uses no credit) at most every 5 minutes, in the background.
 - The key is sent only as that request's `Authorization: Bearer` header. It is never printed, logged or saved.
@@ -91,9 +108,10 @@ The header shows `DeepSeek 110.00 CNY` before the usage bars. perch looks for th
 
 | Path | What |
 |---|---|
+| `~/.config/perch/config.json` | your settings (optional, see Config) |
 | `~/.config/perch/state.json` | recent folders, session info. No secrets |
 | `~/.cache/perch/usage/` | rate-limit snapshots |
-| `~/git/worktrees/<repo>/<branch>` | worktrees |
+| `<worktree_root>/<repo>/<branch>` | worktrees |
 
 ## Develop
 

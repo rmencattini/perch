@@ -30,6 +30,7 @@ type fakeBackend struct {
 	balance   balance.State
 	profiles  []nono.Profile
 	defDir    string
+	gitRoot   string
 	created   []NewRequest
 	createErr error
 	sessions  []session.Session
@@ -76,6 +77,10 @@ func (f *fakeBackend) Profiles() ([]nono.Profile, error) { return f.profiles, ni
 
 func (f *fakeBackend) DefaultDir() string { return f.defDir }
 
+func (f *fakeBackend) DefaultProfile() string { return "" }
+
+func (f *fakeBackend) GitRoot() string { return f.gitRoot }
+
 func (f *fakeBackend) Folders() []string { return nil }
 
 func (f *fakeBackend) DetachHint() string { return "ctrl-a d" }
@@ -99,7 +104,7 @@ func newFake() *fakeBackend {
 	return &fakeBackend{
 		profiles: []nono.Profile{
 			{Name: "default", Description: "Default conservative base profile"},
-			{Name: nono.DefaultProfile, Description: "Anthropic Claude Code CLI agent"},
+			{Name: "nolabs-ai/claude", Description: "Anthropic Claude Code CLI agent"},
 			{Name: "go-dev", Description: "Go SDK"},
 		},
 		sessions: []session.Session{

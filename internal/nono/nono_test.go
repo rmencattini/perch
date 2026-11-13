@@ -21,7 +21,7 @@ func TestParseProfilesReal(t *testing.T) {
 	}
 	var found bool
 	for _, p := range ps {
-		if p.Name == DefaultProfile {
+		if p.Name == "nolabs-ai/claude" {
 			found = true
 			if p.Source != "pack" || p.Description == "" {
 				t.Errorf("bad default profile: %+v", p)
@@ -29,7 +29,7 @@ func TestParseProfilesReal(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("%s missing", DefaultProfile)
+		t.Error("nolabs-ai/claude missing")
 	}
 }
 
@@ -115,5 +115,22 @@ func TestAgent(t *testing.T) {
 		if got := Agent(profile); got != want {
 			t.Errorf("Agent(%q) = %q, want %q", profile, got, want)
 		}
+	}
+}
+
+func TestPickDefault(t *testing.T) {
+	ps := []Profile{{Name: "default"}, {Name: "acme/claude"}, {Name: "mine"}}
+	cases := []struct{ configured, want string }{
+		{"mine", "mine"},        // configured and present
+		{"gone", "acme/claude"}, // configured but absent: first claude profile
+		{"", "acme/claude"},     // nothing configured
+	}
+	for _, c := range cases {
+		if got := PickDefault(ps, c.configured); got != c.want {
+			t.Errorf("PickDefault(%q) = %q, want %q", c.configured, got, c.want)
+		}
+	}
+	if got := PickDefault([]Profile{{Name: "default"}}, ""); got != "" {
+		t.Errorf("no claude profile: got %q, want empty", got)
 	}
 }

@@ -1,0 +1,10 @@
+{
+  "default_profile": "",
+  "git_root": "~/git",
+  "worktree_root": "",
+  "deepseek": {
+    "enabled": false,
+    "keychain_service": "perch",
+    "keychain_account": "deepseek_api_key"
+  }
+}

@@ -9,9 +9,6 @@ import (
 	"strings"
 )
 
-// DefaultProfile is preselected in the new-session dialog.
-const DefaultProfile = "nolabs-ai/claude"
-
 type Profile struct {
 	Name        string   `json:"name"`
 	Source      string   `json:"source"` // built-in, pack, user
@@ -183,4 +180,21 @@ func quote(s string) string {
 		return s
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// PickDefault is the profile preselected in the new-session dialog: the
+// configured one when it exists, else the first whose name contains "claude",
+// else "" (the dialog keeps its first row).
+func PickDefault(profiles []Profile, configured string) string {
+	for _, p := range profiles {
+		if configured != "" && p.Name == configured {
+			return p.Name
+		}
+	}
+	for _, p := range profiles {
+		if strings.Contains(p.Name, "claude") {
+			return p.Name
+		}
+	}
+	return ""
 }

@@ -36,7 +36,11 @@ type Backend interface {
 	Balance() balance.State
 	Profiles() ([]nono.Profile, error)
 	DefaultDir() string // folder the new-session dialog starts with ("" = none yet)
-	Folders() []string  // recent folders, newest first
+	// DefaultProfile is the configured profile name ("" = pick one automatically).
+	DefaultProfile() string
+	// GitRoot is the folder whose repos the fzf picker lists.
+	GitRoot() string
+	Folders() []string // recent folders, newest first
 	// Command previews what Create would run: the folder and the shell command.
 	Command(r NewRequest) (dir, cmd string)
 	Create(r NewRequest) error
@@ -54,7 +58,9 @@ type TmuxBackend struct {
 	StatePath string
 	Session   string // tmux session name, "perch"
 
-	WorktreeRoot string // ~/git/worktrees
+	WorktreeRoot string // config worktree_root
+	GitRootDir   string // config git_root
+	Profile      string // config default_profile
 	UsageDir     string // ~/.cache/perch/usage: Claude's statusline writes here, so nono must allow it
 	Home         string // denials under it never raise nono's review prompt (e.g. when K stops a session)
 	BinDir       string // folder of the perch binary: nono must allow reading it to run `perch statusline`
@@ -168,6 +174,10 @@ func (b *TmuxBackend) Diff(s session.Session) string {
 	b.diffDir, b.diffAt, b.diffOut = s.Dir, b.now(), out
 	return out
 }
+
+func (b *TmuxBackend) DefaultProfile() string { return b.Profile }
+
+func (b *TmuxBackend) GitRoot() string { return b.GitRootDir }
 
 func (b *TmuxBackend) Usage() usage.Summary { return usage.Load(b.UsageDir, b.now()) }
 

@@ -17,13 +17,11 @@ const (
 	// KeyEnv is the environment variable that holds the API key. perch never
 	// prints it and never writes it to disk.
 	KeyEnv = "DEEPSEEK_API_KEY"
-	// KeychainEnv and KeychainAccountEnv name the macOS Keychain item (its
+	// KeychainEnv and KeychainAccountEnv name the system keyring item (its
 	// "service" and "account") to read the key from when KeyEnv is not set.
+	// They override the deepseek.keychain_* keys of the config file.
 	KeychainEnv        = "PERCH_DEEPSEEK_KEYCHAIN"
 	KeychainAccountEnv = "PERCH_DEEPSEEK_KEYCHAIN_ACCOUNT"
-	// The defaults are the item this tool was set up with.
-	DefaultKeychainService = "nono"
-	DefaultKeychainAccount = "deepseek_api_key"
 	// URL is free to call: it does not consume any balance.
 	URL = "https://api.deepseek.com/user/balance"
 )
@@ -99,16 +97,41 @@ func ExecRunner(ctx context.Context, name string, args ...string) ([]byte, error
 	return exec.CommandContext(ctx, name, args...).Output()
 }
 
-// Keychain reads a generic password from the macOS Keychain with
-// `security find-generic-password -s <service> [-a <account>] -w`. "" means
-// not found or access refused. The error text of `security` is dropped on
-// purpose.
-func Keychain(ctx context.Context, run Runner, service, account string) string {
-	args := []string{"find-generic-password", "-s", service}
-	if account != "" {
-		args = append(args, "-a", account)
+// KeyringName is what the system keyring is called on goos, for messages.
+func KeyringName(goos string) string {
+	switch goos {
+	case "darwin":
+		return "macOS Keychain"
+	case "linux":
+		return "Secret Service keyring (secret-tool)"
 	}
-	out, err := run(ctx, "security", append(args, "-w")...)
+	return "system keyring"
+}
+
+// Secret reads a password from the system keyring: on macOS
+// `security find-generic-password -s <service> [-a <account>] -w`, on Linux
+// `secret-tool lookup service <service> [account <account>]` (libsecret:
+// GNOME Keyring, KWallet). "" means not found, access refused, no such tool,
+// or an unsupported OS. The error text of the tool is dropped on purpose.
+func Secret(ctx context.Context, run Runner, goos, service, account string) string {
+	var name string
+	var args []string
+	switch goos {
+	case "darwin":
+		name, args = "security", []string{"find-generic-password", "-s", service}
+		if account != "" {
+			args = append(args, "-a", account)
+		}
+		args = append(args, "-w")
+	case "linux":
+		name, args = "secret-tool", []string{"lookup", "service", service}
+		if account != "" {
+			args = append(args, "account", account)
+		}
+	default:
+		return ""
+	}
+	out, err := run(ctx, name, args...)
 	if err != nil {
 		return ""
 	}
@@ -118,7 +141,7 @@ func Keychain(ctx context.Context, run Runner, service, account string) string {
 // Cache fetches in the background at most once per Every, so the one-second
 // screen refresh never waits on the network. With neither Key nor Lookup it
 // is "not configured": Get reports that and never calls out. Lookup finds the
-// key (Keychain) in the background too, since `security` can wait on a prompt.
+// key (keyring) in the background too, since the keyring can wait on a prompt.
 type Cache struct {
 	Key    string
 	Lookup func(ctx context.Context) string // used when Key is empty
@@ -139,7 +162,7 @@ type Cache struct {
 type State struct {
 	Configured bool // DEEPSEEK_API_KEY is set
 	Loaded     bool // a fetch has finished (ok or not)
-	Missing    bool // no key in the environment or the Keychain
+	Missing    bool // no key in the environment or the keyring
 	Info       Info
 	Err        error
 }

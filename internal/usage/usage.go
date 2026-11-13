@@ -33,8 +33,11 @@ type Summary struct {
 	FiveHour, SevenDay Reading
 }
 
-// DefaultDir is ~/.cache/perch/usage.
+// DefaultDir is ~/.cache/perch/usage ($XDG_CACHE_HOME/perch/usage when set).
 func DefaultDir() (string, error) {
+	if x := os.Getenv("XDG_CACHE_HOME"); x != "" {
+		return filepath.Join(x, "perch", "usage"), nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

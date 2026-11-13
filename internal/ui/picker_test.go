@@ -49,6 +49,7 @@ func pickerModel(t *testing.T, defDir string) (Model, *[][]string) {
 	var asked [][]string
 	m := New(f)
 	m.home = t.TempDir()
+	f.gitRoot = filepath.Join(m.home, "git")
 	m.pick = func(c []string) tea.Cmd { asked = append(asked, c); return nil }
 	m = drive(m, profilesMsg{profiles: f.profiles})
 	return m, &asked

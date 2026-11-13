@@ -68,7 +68,7 @@ type dialog struct {
 	command           func(NewRequest) (dir, cmd string)
 }
 
-func newDialog(profiles []nono.Profile, profErr string, existing []string, defaultDir, home string, command func(NewRequest) (string, string)) *dialog {
+func newDialog(profiles []nono.Profile, profErr string, existing []string, defaultDir, home, defaultProfile string, command func(NewRequest) (string, string)) *dialog {
 	mk := func(placeholder string) textinput.Model {
 		t := textinput.New()
 		t.Placeholder = placeholder
@@ -78,14 +78,14 @@ func newDialog(profiles []nono.Profile, profErr string, existing []string, defau
 		return t
 	}
 	d := &dialog{
-		name: mk("fix-login"), dir: mk("~/git/project"), branch: mk("feat/my-change"), extra: mk("~/git/other (enter adds)"),
+		name: mk("fix-login"), dir: mk("~/path/to/project"), branch: mk("feat/my-change"), extra: mk("~/path/to/other (enter adds)"),
 		profiles: profiles, profErr: profErr, existing: map[string]bool{}, home: home, command: command,
 	}
 	for _, n := range existing {
 		d.existing[n] = true
 	}
 	for i, p := range profiles {
-		if p.Name == nono.DefaultProfile {
+		if p.Name == defaultProfile {
 			d.prof = i
 		}
 	}
