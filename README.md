@@ -72,6 +72,16 @@ Already have a statusLine? Keep it and let perch listen:
 - Sessions run inside nono. perch adds `--allow ~/.cache/perch/usage` and `--read <folder of the perch binary>`
   to the command, so the script can run and write. A profile that denies them breaks the bars.
 
+## DeepSeek balance (header)
+
+Set `DEEPSEEK_API_KEY` in the shell that starts perch and the header shows `DeepSeek 110.00 CNY` before the usage bars.
+Not set: nothing is shown and perch never calls out.
+
+- perch asks `GET https://api.deepseek.com/user/balance` (free, uses no credit) at most every 5 minutes, in the background.
+- The key is sent only as that request's `Authorization: Bearer` header. It is never printed, logged or saved.
+- `DeepSeek …` loading · `DeepSeek ?` request failed or 401 (key invalid) · `DeepSeek empty ✗` 402 or `is_available: false`: model calls will fail.
+- This runs in perch itself, not in the nono sessions, so no `--allow` or network rule is needed.
+
 ## Files
 
 | Path | What |

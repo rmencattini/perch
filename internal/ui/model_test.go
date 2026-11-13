@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
+	"perch/internal/balance"
 	"perch/internal/nono"
 	"perch/internal/session"
 	"perch/internal/state"
@@ -26,6 +27,7 @@ import (
 type fakeBackend struct {
 	mu        sync.Mutex
 	usage     usage.Summary
+	balance   balance.State
 	profiles  []nono.Profile
 	defDir    string
 	created   []NewRequest
@@ -67,6 +69,8 @@ func (f *fakeBackend) Kill(s session.Session) error {
 }
 
 func (f *fakeBackend) Usage() usage.Summary { return f.usage }
+
+func (f *fakeBackend) Balance() balance.State { return f.balance }
 
 func (f *fakeBackend) Profiles() ([]nono.Profile, error) { return f.profiles, nil }
 

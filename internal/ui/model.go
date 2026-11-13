@@ -3,6 +3,7 @@ package ui
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"perch/internal/balance"
 	"perch/internal/nono"
 	"perch/internal/session"
 	"perch/internal/status"
@@ -36,6 +38,7 @@ type (
 		preview  string
 		diff     string
 		usage    usage.Summary
+		balance  balance.State
 		hint     string
 		err      error
 	}
@@ -68,6 +71,7 @@ type Model struct {
 	dlg         *dialog // new-session dialog, nil when closed
 	want        string  // select this session on the next refresh (just created)
 	usage       usage.Summary
+	balance     balance.State
 	home        string
 	now         func() time.Time
 	pick        func(candidates []string) tea.Cmd // folder picker, fzf by default
@@ -116,7 +120,7 @@ func (m Model) refresh() tea.Cmd {
 		if err != nil {
 			return refreshMsg{err: err}
 		}
-		out := refreshMsg{sessions: ss, usage: b.Usage(), hint: b.DetachHint()}
+		out := refreshMsg{sessions: ss, usage: b.Usage(), balance: b.Balance(), hint: b.DetachHint()}
 		for _, s := range ss {
 			if s.Name == sel.Name {
 				fill(&out, s)
@@ -152,7 +156,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.sessions = msg.sessions
 		m.cursor = indexOf(m.sessions, keep.Name, m.cursor)
-		m.usage = msg.usage
+		m.usage, m.balance = msg.usage, msg.balance
 		m.hint = msg.hint
 		if cur, ok := m.selected(); ok && cur.Name == m.want {
 			m.want = ""
@@ -443,10 +447,30 @@ func (m Model) header() string {
 		h += "  " + stSty[status.NeedsInput].Render(fmt.Sprintf("! %d need input", waiting))
 	}
 	u := m.usageBars()
+	if d := m.balanceText(); d != "" {
+		u = d + "  " + u
+	}
 	if gap := m.width - lipgloss.Width(h) - lipgloss.Width(u); gap >= 2 {
 		h += strings.Repeat(" ", gap) + u
 	}
 	return h
+}
+
+// balanceText is the DeepSeek credit for the header. No key set shows nothing;
+// loading and failures stay short and never quote the key.
+func (m Model) balanceText() string {
+	b := m.balance
+	switch {
+	case !b.Configured:
+		return ""
+	case !b.Loaded:
+		return dim.Render("DeepSeek …")
+	case errors.Is(b.Err, balance.ErrExhausted) || (b.Err == nil && !b.Info.Available):
+		return errSty.Render("DeepSeek empty ✗")
+	case b.Err != nil:
+		return dim.Render("DeepSeek ?")
+	}
+	return "DeepSeek " + b.Info.Total + " " + b.Info.Currency
 }
 
 const barCells = 8

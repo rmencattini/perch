@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"perch/internal/balance"
 	"perch/internal/nono"
 	"perch/internal/session"
 	"perch/internal/state"
@@ -31,6 +32,8 @@ type Backend interface {
 	Kill(s session.Session) error
 
 	Usage() usage.Summary
+	// Balance is the DeepSeek credit: the last answer, never a wait on the network.
+	Balance() balance.State
 	Profiles() ([]nono.Profile, error)
 	DefaultDir() string // folder the new-session dialog starts with ("" = none yet)
 	Folders() []string  // recent folders, newest first
@@ -65,6 +68,8 @@ type TmuxBackend struct {
 	// holding it. nil = `nono detach <name>`. Tests replace it.
 	Detach func(name string) string
 	Now    func() time.Time
+	// DeepSeek feeds the header balance. nil = not shown.
+	DeepSeek *balance.Cache
 
 	psAt time.Time
 
@@ -165,6 +170,13 @@ func (b *TmuxBackend) Diff(s session.Session) string {
 }
 
 func (b *TmuxBackend) Usage() usage.Summary { return usage.Load(b.UsageDir, b.now()) }
+
+func (b *TmuxBackend) Balance() balance.State {
+	if b.DeepSeek == nil {
+		return balance.State{}
+	}
+	return b.DeepSeek.Get()
+}
 
 func (b *TmuxBackend) Profiles() ([]nono.Profile, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
