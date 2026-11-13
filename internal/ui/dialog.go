@@ -419,11 +419,11 @@ func (d *dialog) previewRequest() NewRequest {
 	return r
 }
 
-const labelW = 12
+const labelW = 14
 
 var (
 	labelSty = lipgloss.NewStyle().Width(labelW)
-	focusSty = lipgloss.NewStyle().Bold(true)
+	focusSty = lipgloss.NewStyle().Bold(true).Foreground(accent)
 )
 
 func (d *dialog) view(width int) string {
@@ -442,7 +442,7 @@ func (d *dialog) view(width int) string {
 		if d.focus == f {
 			return focusSty.Render(labelSty.Render("▸ " + s))
 		}
-		return labelSty.Render("  " + s)
+		return subSty.Render(labelSty.Render("  " + s))
 	}
 	errLine := func(f field) string {
 		if errs[f] == "" {
@@ -452,55 +452,55 @@ func (d *dialog) view(width int) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(bold.Render("New session") + "\n\n")
+	b.WriteString(bannerSty.Render(" New session ") + "\n\n")
 	b.WriteString(label(fName, "Name") + d.name.View() + errLine(fName) + "\n")
 	hint := ""
 	if d.focus == fDir {
-		hint = "\n" + strings.Repeat(" ", labelW) + dim.Render("ctrl+f: pick with fzf")
+		hint = "\n" + strings.Repeat(" ", labelW) + subSty.Render("ctrl+f: pick with fzf")
 	}
 	b.WriteString(label(fDir, "Folder") + d.dir.View() + errLine(fDir) + hint + "\n")
 
 	chips := ""
 	for _, e := range d.extras {
-		chips += strings.Repeat(" ", labelW) + dim.Render(trunc("+ "+tildify(e, d.home), w-labelW-2)) + "\n"
+		chips += strings.Repeat(" ", labelW) + subSty.Render(trunc("+ "+tildify(e, d.home), w-labelW-2)) + "\n"
 	}
 	exHint := ""
 	if d.focus == fExtra {
-		exHint = "\n" + strings.Repeat(" ", labelW) + dim.Render("enter add · ctrl+f fzf · backspace on empty removes last")
+		exHint = "\n" + strings.Repeat(" ", labelW) + subSty.Render("enter add · ctrl+f fzf · backspace on empty removes last")
 	}
 	b.WriteString(label(fExtra, "Also allow") + d.extra.View() + errLine(fExtra) + exHint + "\n" + chips)
 
 	prof := dim.Render("(none)")
 	desc := ""
 	if p := d.profileName(); p != "" {
-		prof = "◂ " + p + " ▸"
+		prof = frameSty.Render("◂ ") + titleSty.Render(p) + frameSty.Render(" ▸")
 		desc = d.profiles[d.prof].Description
 	}
 	b.WriteString(label(fProfile, "Profile") + prof + errLine(fProfile) + "\n")
 	if desc != "" {
-		b.WriteString(strings.Repeat(" ", labelW) + dim.Render(trunc(desc, w-labelW-2)) + "\n")
+		b.WriteString(strings.Repeat(" ", labelW) + subSty.Render(trunc(desc, w-labelW-2)) + "\n")
 	}
 
-	box := "[ ]"
+	box := subSty.Render("[ ]")
 	if d.worktree {
-		box = "[x]"
+		box = frameSty.Render("[x]")
 	}
-	b.WriteString(label(fWorktree, "Worktree") + box + " new git worktree for a branch" + errLine(fWorktree) + "\n")
+	b.WriteString(label(fWorktree, "Worktree") + box + subSty.Render(" new git worktree for a branch") + errLine(fWorktree) + "\n")
 	if d.worktree {
 		b.WriteString(label(fBranch, "Branch") + d.branch.View() + errLine(fBranch) + "\n")
 	}
 
 	dir, cmd := d.command(d.previewRequest())
-	b.WriteString("\n" + dim.Render("Runs in "+dir) + "\n")
-	b.WriteString(lipgloss.NewStyle().Width(w-2).Render(cmd) + "\n")
+	b.WriteString("\n" + subSty.Render("Runs in "+dir) + "\n")
+	b.WriteString(lipgloss.NewStyle().Width(w-2).Render(descSty.Render(cmd)) + "\n")
 
 	switch {
 	case d.busy:
-		b.WriteString("\n" + bold.Render("creating…"))
+		b.WriteString("\n" + frameSty.Render("creating…"))
 	case d.createErr != "":
 		b.WriteString("\n" + errSty.Render(trunc("✗ "+d.createErr, w-2)))
 	default:
-		b.WriteString("\n" + dim.Render("enter create · esc cancel"))
+		b.WriteString("\n" + keySty.Render("enter") + " " + descSty.Render("create") + sepSty.Render(" • ") + keySty.Render("esc") + " " + descSty.Render("cancel"))
 	}
-	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(0, 2).Width(w).Render(b.String())
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(accent).Padding(1, 2).Width(w).Render(b.String())
 }
