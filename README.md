@@ -77,8 +77,9 @@ Already have a statusLine? Keep it and let perch listen:
 The header shows `DeepSeek 110.00 CNY` before the usage bars. perch looks for the key in this order:
 
 1. the `DEEPSEEK_API_KEY` environment variable of the shell that starts perch;
-2. the macOS Keychain generic password whose **service** is `DEEPSEEK_API_KEY`, or the name in `PERCH_DEEPSEEK_KEYCHAIN`
-   (`security find-generic-password -s <service> -w`; macOS may ask once to allow access).
+2. the macOS Keychain generic password with **service** `sandboxes-auth` and **account** `deepseek_api_key`
+   (`security find-generic-password -s sandboxes-auth -a deepseek_api_key -w`; macOS may ask once to allow access).
+   Other item: set `PERCH_DEEPSEEK_KEYCHAIN` (service) and `PERCH_DEEPSEEK_KEYCHAIN_ACCOUNT` (account).
 
 - perch asks `GET https://api.deepseek.com/user/balance` (free, uses no credit) at most every 5 minutes, in the background.
 - The key is sent only as that request's `Authorization: Bearer` header. It is never printed, logged or saved.

@@ -18,15 +18,15 @@ func TestKeychainArgsAndTrim(t *testing.T) {
 		got = append([]string{name}, args...)
 		return []byte("sk-abc\n"), nil
 	}
-	if key := Keychain(context.Background(), run, "my-service"); key != "sk-abc" {
+	if key := Keychain(context.Background(), run, "my-service", "my-account"); key != "sk-abc" {
 		t.Errorf("key = %q", key)
 	}
-	want := []string{"security", "find-generic-password", "-s", "my-service", "-w"}
+	want := []string{"security", "find-generic-password", "-s", "my-service", "-a", "my-account", "-w"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("args = %v", got)
 	}
 	fail := func(context.Context, string, ...string) ([]byte, error) { return nil, errors.New("exit 44") }
-	if key := Keychain(context.Background(), fail, "x"); key != "" {
+	if key := Keychain(context.Background(), fail, "x", ""); key != "" {
 		t.Errorf("not found must be empty, got %q", key)
 	}
 }

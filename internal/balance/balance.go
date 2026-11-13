@@ -17,11 +17,13 @@ const (
 	// KeyEnv is the environment variable that holds the API key. perch never
 	// prints it and never writes it to disk.
 	KeyEnv = "DEEPSEEK_API_KEY"
-	// KeychainEnv names the macOS Keychain item (its "service") to read the
-	// key from when KeyEnv is not set.
-	KeychainEnv = "PERCH_DEEPSEEK_KEYCHAIN"
-	// DefaultKeychainService is used when KeychainEnv is not set.
-	DefaultKeychainService = "DEEPSEEK_API_KEY"
+	// KeychainEnv and KeychainAccountEnv name the macOS Keychain item (its
+	// "service" and "account") to read the key from when KeyEnv is not set.
+	KeychainEnv        = "PERCH_DEEPSEEK_KEYCHAIN"
+	KeychainAccountEnv = "PERCH_DEEPSEEK_KEYCHAIN_ACCOUNT"
+	// The defaults are the item this tool was set up with.
+	DefaultKeychainService = "sandboxes-auth"
+	DefaultKeychainAccount = "deepseek_api_key"
 	// URL is free to call: it does not consume any balance.
 	URL = "https://api.deepseek.com/user/balance"
 )
@@ -98,10 +100,15 @@ func ExecRunner(ctx context.Context, name string, args ...string) ([]byte, error
 }
 
 // Keychain reads a generic password from the macOS Keychain with
-// `security find-generic-password -s <service> -w`. "" means not found or
-// access refused. The error text of `security` is dropped on purpose.
-func Keychain(ctx context.Context, run Runner, service string) string {
-	out, err := run(ctx, "security", "find-generic-password", "-s", service, "-w")
+// `security find-generic-password -s <service> [-a <account>] -w`. "" means
+// not found or access refused. The error text of `security` is dropped on
+// purpose.
+func Keychain(ctx context.Context, run Runner, service, account string) string {
+	args := []string{"find-generic-password", "-s", service}
+	if account != "" {
+		args = append(args, "-a", account)
+	}
+	out, err := run(ctx, "security", append(args, "-w")...)
 	if err != nil {
 		return ""
 	}
