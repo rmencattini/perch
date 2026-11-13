@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -15,6 +17,11 @@ const (
 	// KeyEnv is the environment variable that holds the API key. perch never
 	// prints it and never writes it to disk.
 	KeyEnv = "DEEPSEEK_API_KEY"
+	// KeychainEnv names the macOS Keychain item (its "service") to read the
+	// key from when KeyEnv is not set.
+	KeychainEnv = "PERCH_DEEPSEEK_KEYCHAIN"
+	// DefaultKeychainService is used when KeychainEnv is not set.
+	DefaultKeychainService = "DEEPSEEK_API_KEY"
 	// URL is free to call: it does not consume any balance.
 	URL = "https://api.deepseek.com/user/balance"
 )
@@ -82,17 +89,39 @@ func Fetch(ctx context.Context, client *http.Client, url, key string) (Info, err
 // ErrExhausted is the 402 answer: further model calls fail.
 var ErrExhausted = fmt.Errorf("deepseek balance: 402, balance exhausted")
 
+// Runner runs a command and returns its stdout. Tests replace it.
+type Runner func(ctx context.Context, name string, args ...string) ([]byte, error)
+
+// ExecRunner runs the real command.
+func ExecRunner(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return exec.CommandContext(ctx, name, args...).Output()
+}
+
+// Keychain reads a generic password from the macOS Keychain with
+// `security find-generic-password -s <service> -w`. "" means not found or
+// access refused. The error text of `security` is dropped on purpose.
+func Keychain(ctx context.Context, run Runner, service string) string {
+	out, err := run(ctx, "security", "find-generic-password", "-s", service, "-w")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 // Cache fetches in the background at most once per Every, so the one-second
-// screen refresh never waits on the network. The zero Key means "not
-// configured": Get reports that and never calls out.
+// screen refresh never waits on the network. With neither Key nor Lookup it
+// is "not configured": Get reports that and never calls out. Lookup finds the
+// key (Keychain) in the background too, since `security` can wait on a prompt.
 type Cache struct {
 	Key    string
+	Lookup func(ctx context.Context) string // used when Key is empty
 	URL    string
 	Client *http.Client
 	Every  time.Duration
 	Now    func() time.Time
 
 	mu       sync.Mutex
+	missing  bool // Lookup found no key
 	info     Info
 	err      error
 	at       time.Time
@@ -103,6 +132,7 @@ type Cache struct {
 type State struct {
 	Configured bool // DEEPSEEK_API_KEY is set
 	Loaded     bool // a fetch has finished (ok or not)
+	Missing    bool // no key in the environment or the Keychain
 	Info       Info
 	Err        error
 }
@@ -116,11 +146,14 @@ func (c *Cache) now() time.Time {
 
 // Get returns the last answer at once and starts a refresh when it is stale.
 func (c *Cache) Get() State {
-	if c.Key == "" {
-		return State{}
-	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.Key == "" && c.Lookup == nil {
+		return State{}
+	}
+	if c.missing {
+		return State{Configured: true, Missing: true}
+	}
 	if !c.fetching && (c.at.IsZero() || c.now().Sub(c.at) >= c.Every) {
 		c.fetching = true
 		go c.refresh()
@@ -139,7 +172,20 @@ func (c *Cache) refresh() {
 	if url == "" {
 		url = URL
 	}
-	info, err := Fetch(ctx, client, url, c.Key)
+	key := c.Key
+	if key == "" {
+		key = c.Lookup(ctx)
+		if key == "" {
+			c.mu.Lock()
+			c.missing, c.fetching = true, false
+			c.mu.Unlock()
+			return
+		}
+		c.mu.Lock()
+		c.Key = key // asked once; later refreshes reuse it
+		c.mu.Unlock()
+	}
+	info, err := Fetch(ctx, client, url, key)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.info, c.err, c.at, c.fetching = info, err, c.now(), false

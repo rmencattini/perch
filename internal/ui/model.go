@@ -456,13 +456,15 @@ func (m Model) header() string {
 	return h
 }
 
-// balanceText is the DeepSeek credit for the header. No key set shows nothing;
-// loading and failures stay short and never quote the key.
+// balanceText is the DeepSeek credit for the header. No key found says so, so a wrong
+// Keychain name is not silent; loading and failures stay short and never quote the key.
 func (m Model) balanceText() string {
 	b := m.balance
 	switch {
 	case !b.Configured:
 		return ""
+	case b.Missing:
+		return dim.Render("DeepSeek: no key")
 	case !b.Loaded:
 		return dim.Render("DeepSeek …")
 	case errors.Is(b.Err, balance.ErrExhausted) || (b.Err == nil && !b.Info.Available):

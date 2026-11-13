@@ -74,13 +74,17 @@ Already have a statusLine? Keep it and let perch listen:
 
 ## DeepSeek balance (header)
 
-Set `DEEPSEEK_API_KEY` in the shell that starts perch and the header shows `DeepSeek 110.00 CNY` before the usage bars.
-Not set: nothing is shown and perch never calls out.
+The header shows `DeepSeek 110.00 CNY` before the usage bars. perch looks for the key in this order:
+
+1. the `DEEPSEEK_API_KEY` environment variable of the shell that starts perch;
+2. the macOS Keychain generic password whose **service** is `DEEPSEEK_API_KEY`, or the name in `PERCH_DEEPSEEK_KEYCHAIN`
+   (`security find-generic-password -s <service> -w`; macOS may ask once to allow access).
 
 - perch asks `GET https://api.deepseek.com/user/balance` (free, uses no credit) at most every 5 minutes, in the background.
 - The key is sent only as that request's `Authorization: Bearer` header. It is never printed, logged or saved.
-- `DeepSeek …` loading · `DeepSeek ?` request failed or 401 (key invalid) · `DeepSeek empty ✗` 402 or `is_available: false`: model calls will fail.
-- This runs in perch itself, not in the nono sessions, so no `--allow` or network rule is needed.
+- `DeepSeek: no key` none found · `DeepSeek …` loading · `DeepSeek ?` request failed or 401 · `DeepSeek empty ✗` 402 or `is_available: false`.
+- `perch balance` prints where the key was found (never the key) and the balance in words. Run it when the header looks wrong.
+- This runs in perch itself, not in the nono sessions, so it needs no `--allow` or network rule.
 
 ## Files
 

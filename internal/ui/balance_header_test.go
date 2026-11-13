@@ -15,7 +15,8 @@ func TestHeaderBalance(t *testing.T) {
 		st   balance.State
 		want string // "" = no DeepSeek text at all
 	}{
-		{"no key", balance.State{}, ""},
+		{"not configured", balance.State{}, ""},
+		{"no key found", balance.State{Configured: true, Missing: true}, "DeepSeek: no key"},
 		{"loading", balance.State{Configured: true}, "DeepSeek …"},
 		{"ok", balance.State{Configured: true, Loaded: true, Info: ok}, "DeepSeek 110.00 CNY"},
 		{"402", balance.State{Configured: true, Loaded: true, Err: balance.ErrExhausted}, "DeepSeek empty ✗"},

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -28,7 +29,7 @@ func TestParse(t *testing.T) {
 func TestFetchSendsBearerAndMapsStatus(t *testing.T) {
 	var auth string
 	status := http.StatusOK
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { // requests run one after another here
 		auth = r.Header.Get("Authorization")
 		w.WriteHeader(status)
 		w.Write([]byte(sample))
@@ -50,19 +51,19 @@ func TestFetchSendsBearerAndMapsStatus(t *testing.T) {
 }
 
 func TestCacheNoKeyNeverCallsOut(t *testing.T) {
-	calls := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }))
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls.Add(1) }))
 	defer srv.Close()
 	c := &Cache{URL: srv.URL, Client: srv.Client(), Every: time.Minute}
-	if st := c.Get(); st.Configured || calls != 0 {
-		t.Errorf("state %+v, calls %d", st, calls)
+	if st := c.Get(); st.Configured || calls.Load() != 0 {
+		t.Errorf("state %+v, calls %d", st, calls.Load())
 	}
 }
 
 func TestCacheFetchesOncePerWindow(t *testing.T) {
-	calls := 0
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		calls++
+		calls.Add(1)
 		w.Write([]byte(sample))
 	}))
 	defer srv.Close()
@@ -77,21 +78,21 @@ func TestCacheFetchesOncePerWindow(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 		st = c.Get()
 	}
-	if !st.Loaded || st.Info.Total != "110.00" || calls != 1 {
-		t.Fatalf("state %+v, calls %d", st, calls)
+	if !st.Loaded || st.Info.Total != "110.00" || calls.Load() != 1 {
+		t.Fatalf("state %+v, calls %d", st, calls.Load())
 	}
 	now = now.Add(30 * time.Second)
 	c.Get()
 	time.Sleep(50 * time.Millisecond)
-	if calls != 1 {
-		t.Errorf("inside the window: calls = %d", calls)
+	if calls.Load() != 1 {
+		t.Errorf("inside the window: calls = %d", calls.Load())
 	}
 	now = now.Add(time.Minute)
 	c.Get()
-	for i := 0; i < 100 && calls < 2; i++ {
+	for i := 0; i < 100 && calls.Load() < 2; i++ {
 		time.Sleep(20 * time.Millisecond)
 	}
-	if calls != 2 {
-		t.Errorf("after the window: calls = %d", calls)
+	if calls.Load() != 2 {
+		t.Errorf("after the window: calls = %d", calls.Load())
 	}
 }
