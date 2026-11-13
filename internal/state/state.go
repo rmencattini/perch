@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"perch/internal/config"
+	"github.com/rmencattini/perch/internal/config"
 )
 
 const maxRecent = 10

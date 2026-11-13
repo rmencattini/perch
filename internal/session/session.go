@@ -4,9 +4,9 @@ package session
 import (
 	"sort"
 
-	"perch/internal/state"
-	"perch/internal/status"
-	"perch/internal/tmux"
+	"github.com/rmencattini/perch/internal/state"
+	"github.com/rmencattini/perch/internal/status"
+	"github.com/rmencattini/perch/internal/tmux"
 )
 
 type Session struct {

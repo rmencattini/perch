@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"perch/internal/usage"
+	"github.com/rmencattini/perch/internal/usage"
 )
 
 var now = time.Unix(1_800_000_000, 0)

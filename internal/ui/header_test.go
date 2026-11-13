@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"perch/internal/session"
-	"perch/internal/status"
-	"perch/internal/usage"
+	"github.com/rmencattini/perch/internal/session"
+	"github.com/rmencattini/perch/internal/status"
+	"github.com/rmencattini/perch/internal/usage"
 )
 
 func TestBar(t *testing.T) {

@@ -4,7 +4,7 @@ package status
 import (
 	"strings"
 
-	"perch/internal/patterns"
+	"github.com/rmencattini/perch/internal/patterns"
 )
 
 type Status int

@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"perch/internal/nono"
-	"perch/internal/session"
-	"perch/internal/state"
-	"perch/internal/status"
-	"perch/internal/tmux"
+	"github.com/rmencattini/perch/internal/nono"
+	"github.com/rmencattini/perch/internal/session"
+	"github.com/rmencattini/perch/internal/state"
+	"github.com/rmencattini/perch/internal/status"
+	"github.com/rmencattini/perch/internal/tmux"
 )
 
 func TestTmuxBackendCreate(t *testing.T) {

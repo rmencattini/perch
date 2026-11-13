@@ -12,8 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"perch/internal/nono"
-	"perch/internal/worktree"
+	"github.com/rmencattini/perch/internal/nono"
+	"github.com/rmencattini/perch/internal/worktree"
 )
 
 // NewRequest is what the new-session dialog asks the backend to create.

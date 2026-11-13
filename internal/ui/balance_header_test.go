@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"perch/internal/balance"
+	"github.com/rmencattini/perch/internal/balance"
 )
 
 func TestHeaderBalance(t *testing.T) {

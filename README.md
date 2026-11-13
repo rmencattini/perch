@@ -6,7 +6,7 @@ Each session is a window in the tmux session `perch`, started as
 
 ## Install
 
-1. `go build -o ~/.local/bin/perch ./cmd/perch`
+1. `go install github.com/rmencattini/perch/cmd/perch@latest` (puts `perch` in `~/go/bin`), or from a clone: `go build -o ~/.local/bin/perch ./cmd/perch`
 2. Run `perch` in a plain terminal, or inside tmux. Inside tmux, `enter` opens the session in a popup, and your prefix + `d` closes only the popup.
 
 Needs `tmux` and `nono` on your PATH, and `fzf` for the folder picker. Works on macOS and Linux.

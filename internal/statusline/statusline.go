@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"perch/internal/usage"
+	"github.com/rmencattini/perch/internal/usage"
 )
 
 type Options struct {

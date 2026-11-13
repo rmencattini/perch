@@ -3,9 +3,9 @@ package session
 import (
 	"testing"
 
-	"perch/internal/state"
-	"perch/internal/status"
-	"perch/internal/tmux"
+	"github.com/rmencattini/perch/internal/state"
+	"github.com/rmencattini/perch/internal/status"
+	"github.com/rmencattini/perch/internal/tmux"
 )
 
 func TestJoin(t *testing.T) {

@@ -15,13 +15,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 
-	"perch/internal/balance"
-	"perch/internal/nono"
-	"perch/internal/session"
-	"perch/internal/state"
-	"perch/internal/status"
-	"perch/internal/tmux"
-	"perch/internal/usage"
+	"github.com/rmencattini/perch/internal/balance"
+	"github.com/rmencattini/perch/internal/nono"
+	"github.com/rmencattini/perch/internal/session"
+	"github.com/rmencattini/perch/internal/state"
+	"github.com/rmencattini/perch/internal/status"
+	"github.com/rmencattini/perch/internal/tmux"
+	"github.com/rmencattini/perch/internal/usage"
 )
 
 type fakeBackend struct {

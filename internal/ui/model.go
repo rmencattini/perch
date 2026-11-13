@@ -13,11 +13,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"perch/internal/balance"
-	"perch/internal/nono"
-	"perch/internal/session"
-	"perch/internal/status"
-	"perch/internal/usage"
+	"github.com/rmencattini/perch/internal/balance"
+	"github.com/rmencattini/perch/internal/nono"
+	"github.com/rmencattini/perch/internal/session"
+	"github.com/rmencattini/perch/internal/status"
+	"github.com/rmencattini/perch/internal/usage"
 )
 
 const (
