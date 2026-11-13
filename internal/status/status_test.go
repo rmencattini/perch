@@ -48,3 +48,11 @@ func TestDetectNewSpinner(t *testing.T) {
 		t.Errorf("got %v, want Idle", got)
 	}
 }
+
+func TestDetectOpencode(t *testing.T) {
+	for _, tail := range []string{"  ┃  Build · DeepSeek\n  esc interrupt   ctrl+p commands", "esc again to interrupt"} {
+		if got := Detect(tail); got != Running {
+			t.Errorf("%q = %v, want Running", tail, got)
+		}
+	}
+}
