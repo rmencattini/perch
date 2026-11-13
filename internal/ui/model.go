@@ -655,13 +655,10 @@ func (m Model) previewPane(w, h int) string {
 	return strings.Join(out, "\n")
 }
 
-// diffTab says whether the panel shows the diff for s. An idle or finished
-// session has nothing new on screen, so it opens on its changes; tab overrides.
-func (m Model) diffTab(s session.Session) bool {
-	if m.tabSet {
-		return m.tab == 1
-	}
-	return s.Status == status.Idle
+// diffTab says whether the panel shows the diff. Preview is the default; tab
+// switches. The status is no clue: it can be wrong, so it never picks the tab.
+func (m Model) diffTab(session.Session) bool {
+	return m.tabSet && m.tab == 1
 }
 
 var (

@@ -15,6 +15,8 @@ var (
 	// Running matches the spinner footer Claude Code shows while it works.
 	Running = []*regexp.Regexp{
 		regexp.MustCompile(`(?i)esc to interrupt`),
+		// Newer Claude Code: "✢ Sublimating… (13s · ↓ 820 tokens · thought for 1s)"
+		regexp.MustCompile(`…\s*\(\d+(s|m)\b[^)]*·`),
 	}
 )
 

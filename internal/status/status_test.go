@@ -39,3 +39,12 @@ func TestSymbols(t *testing.T) {
 		}
 	}
 }
+
+func TestDetectNewSpinner(t *testing.T) {
+	if got := Detect("✢ Sublimating… (13s · ↓ 820 tokens · thought for 1s)\n❯ "); got != Running {
+		t.Errorf("got %v, want Running", got)
+	}
+	if got := Detect("done in 3s (really)\n❯ "); got != Idle {
+		t.Errorf("got %v, want Idle", got)
+	}
+}

@@ -28,7 +28,7 @@ Mouse: click a row to select it.
 ## Panel: Preview and Diff
 
 The right panel has two tabs. **Preview** is the live pane. **Diff** is `git diff HEAD` of the session folder plus its untracked files (first 400 lines).
-An idle session opens on **Diff**, since its pane has nothing new. A running one opens on Preview. `tab` overrides this.
+The panel opens on **Preview**. `tab` switches to **Diff** and back.
 A folder that is not a git repo shows "no changes".
 
 Status symbols (readable without color):

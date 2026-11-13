@@ -143,7 +143,7 @@ func TestNavigation(t *testing.T) {
 	key(tm, "j")
 	key(tm, "j")
 	key(tm, "j") // past the end: stays on gamma
-	waitFor(t, tm, "diff of gamma")
+	waitFor(t, tm, "pane of gamma")
 	key(tm, "k")
 	waitFor(t, tm, "pane of beta")
 	m := quit(t, tm)
@@ -224,7 +224,7 @@ func TestMouseClickSelects(t *testing.T) {
 	tm := start(t, newFake())
 	waitFor(t, tm, "pane of alpha")
 	tm.Send(tea.MouseMsg{X: 3, Y: headerLines + listTop + 2*rowHeight, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
-	waitFor(t, tm, "diff of gamma")
+	waitFor(t, tm, "pane of gamma")
 	tm.Send(tea.MouseMsg{X: 90, Y: headerLines, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}) // preview area: ignored
 	m := quit(t, tm)
 	if s, _ := m.selected(); s.Name != "gamma" {
@@ -326,20 +326,19 @@ func TestStaleRefreshDoesNotMoveCursor(t *testing.T) {
 	}
 }
 
-// An idle session has nothing new in its pane, so the panel opens on the diff;
-// a running one stays on the pane. tab flips either.
+// Preview is the default whatever the status; tab flips to the diff.
 func TestDiffTab(t *testing.T) {
 	f := newFake()
 	m := drive(New(f), refreshMsg{sessions: f.sessions, selected: "alpha", preview: "pane of alpha"})
-	if m.diffTab(f.sessions[0]) || !m.diffTab(f.sessions[2]) {
-		t.Fatal("running opens on the pane, idle on the diff")
+	if m.diffTab(f.sessions[0]) || m.diffTab(f.sessions[2]) {
+		t.Fatal("every session opens on the pane, idle or not")
 	}
 	m = drive(m, special(tea.KeyTab))
 	if !m.diffTab(f.sessions[0]) {
 		t.Error("tab on a running session should show its diff")
 	}
-	m = drive(m, typ("j"), typ("j"), special(tea.KeyTab))
-	if m.diffTab(f.sessions[2]) {
-		t.Error("tab on an idle session should show its pane")
+	m = drive(m, special(tea.KeyTab))
+	if m.diffTab(f.sessions[0]) {
+		t.Error("tab again should go back to the pane")
 	}
 }

@@ -20,7 +20,7 @@ func TestFullRun(t *testing.T) {
 	waitFor(t, tm, "created delta")
 
 	key(tm, "k") // delta is selected: step up to gamma
-	waitFor(t, tm, "diff of gamma")
+	waitFor(t, tm, "pane of gamma")
 
 	key(tm, "b")
 	key(tm, "j") // delta
