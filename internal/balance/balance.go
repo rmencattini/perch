@@ -22,7 +22,7 @@ const (
 	KeychainEnv        = "PERCH_DEEPSEEK_KEYCHAIN"
 	KeychainAccountEnv = "PERCH_DEEPSEEK_KEYCHAIN_ACCOUNT"
 	// The defaults are the item this tool was set up with.
-	DefaultKeychainService = "sandboxes-auth"
+	DefaultKeychainService = "nono"
 	DefaultKeychainAccount = "deepseek_api_key"
 	// URL is free to call: it does not consume any balance.
 	URL = "https://api.deepseek.com/user/balance"
