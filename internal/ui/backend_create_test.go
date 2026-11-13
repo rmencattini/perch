@@ -284,3 +284,20 @@ func TestAttachedElsewhereIsDetachedFirst(t *testing.T) {
 		t.Errorf("order = %q (busy must be detached before it is attached; free must not be detached)", got)
 	}
 }
+
+func TestStopTargetUsesLiveID(t *testing.T) {
+	ps := `[{"name":"dup","session_id":"old1","status":"exited"},{"name":"dup","session_id":"live1","status":"running"},{"name":"dup","session_id":"old2","status":"exited"}]`
+	b := &TmuxBackend{Nono: nono.Client{Run: func(_ context.Context, a ...string) ([]byte, error) { return []byte(ps), nil }}}
+	got, err := b.stopTarget(context.Background(), session.Session{Name: "dup"})
+	if err != nil || got != "live1" {
+		t.Fatalf("got %q, %v; want live1", got, err)
+	}
+	two := strings.Replace(ps, `"old1","status":"exited"`, `"live0","status":"running"`, 1)
+	b.Nono.Run = func(_ context.Context, a ...string) ([]byte, error) { return []byte(two), nil }
+	if _, err := b.stopTarget(context.Background(), session.Session{Name: "dup"}); err == nil {
+		t.Fatal("two live sessions with one name must be an error, not a guess")
+	}
+	if got, _ := b.stopTarget(context.Background(), session.Session{Name: "x", NonoID: "id9"}); got != "id9" {
+		t.Fatalf("external session should use its id, got %q", got)
+	}
+}

@@ -366,6 +366,32 @@ func (b *TmuxBackend) Kill(s session.Session) error {
 	return b.save()
 }
 
+// stopTarget is what nono stop gets. nono keeps exited sessions under their
+// old names, so a name alone can match several ("Ambiguous query"): use the id
+// of the one live session with that name. No match falls back to the name.
+func (b *TmuxBackend) stopTarget(ctx context.Context, s session.Session) (string, error) {
+	if s.NonoID != "" {
+		return s.NonoID, nil
+	}
+	ps, err := b.Nono.Ps(ctx)
+	if err != nil {
+		return s.Name, nil
+	}
+	var ids []string
+	for _, e := range ps {
+		if e.Name == s.Name && e.Live() && e.ID != "" {
+			ids = append(ids, e.ID)
+		}
+	}
+	switch len(ids) {
+	case 0:
+		return s.Name, nil
+	case 1:
+		return ids[0], nil
+	}
+	return "", fmt.Errorf("%d live nono sessions are named %s (ids %s): stop the right one with nono stop <id>", len(ids), s.Name, strings.Join(ids, ", "))
+}
+
 func hasWindow(ws []tmux.Window, id string) bool {
 	for _, w := range ws {
 		if w.ID == id {
