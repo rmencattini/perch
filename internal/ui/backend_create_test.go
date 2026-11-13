@@ -122,7 +122,7 @@ func TestTmuxBackendCreate(t *testing.T) {
 	}
 }
 
-func TestTmuxBackendDetachedSessions(t *testing.T) {
+func TestTmuxBackendExternalSessions(t *testing.T) {
 	tc := tmux.Client{Socket: fmt.Sprintf("perch-ui-detached-%d", time.Now().UnixNano())}
 	t.Cleanup(func() {
 		tc.KillServer()
@@ -133,10 +133,10 @@ func TestTmuxBackendDetachedSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls []string
-	ps := `[{"name":"old-one","session_id":"aa11","status":"running","attachment":"detached"},
+	ps := `[{"name":"old-one","session_id":"aa11","status":"running","attachment":"attached"},
 	        {"name":"inside","session_id":"bb22","status":"running"},
 	        {"name":"gone","session_id":"cc33","status":"exited"},
-	        {"session_id":"dd44","status":"running","attachment":"detached"}]`
+	        {"session_id":"dd44","status":"running","attachment":"attached"}]`
 	st := &state.State{Sessions: map[string]state.Meta{}}
 	b := &TmuxBackend{
 		Tmux: tc, State: st, StatePath: filepath.Join(tmp, "state.json"), Session: "perch",
@@ -144,8 +144,9 @@ func TestTmuxBackendDetachedSessions(t *testing.T) {
 			calls = append(calls, strings.Join(a, " "))
 			return []byte(ps), nil
 		}},
-		Adopt: func(string) string { return "printf 'adopted\\n'; sleep 30" }, // never run real nono
-		Now:   func() time.Time { return time.Unix(1_800_000_000, 0) },
+		Adopt:  func(string) string { return "printf 'adopted\\n'; sleep 30" }, // never run real nono
+		Detach: func(string) string { return "true" },
+		Now:    func() time.Time { return time.Unix(1_800_000_000, 0) },
 	}
 
 	ss, err := b.List()
@@ -157,14 +158,14 @@ func TestTmuxBackendDetachedSessions(t *testing.T) {
 		names = append(names, s.Name+":"+s.Status.String())
 	}
 	// own window first; exited and already-in-a-tab sessions are not repeated; unnamed ones show by id
-	if got := strings.Join(names, " "); !strings.HasPrefix(got, "inside:") || !strings.Contains(got, "dd44:detached old-one:detached") || strings.Contains(got, "gone") || strings.Count(got, "inside") != 1 {
+	if got := strings.Join(names, " "); !strings.HasPrefix(got, "inside:") || !strings.Contains(got, "dd44:other tab old-one:other tab") || strings.Contains(got, "gone") || strings.Count(got, "inside") != 1 {
 		t.Fatalf("sessions = %s", got)
 	}
-	if p := b.Preview(ss[len(ss)-1]); !strings.Contains(p, "enter brings it into a perch tab") {
+	if p := b.Preview(ss[len(ss)-1]); !strings.Contains(p, "detaches it there") {
 		t.Errorf("preview = %q", p)
 	}
 
-	// adopt: enter on a detached row gives it a tab
+	// adopt: enter on an other-tab row takes it over into a tab
 	var old session.Session
 	for _, s := range ss {
 		if s.Name == "old-one" {
@@ -184,12 +185,12 @@ func TestTmuxBackendDetachedSessions(t *testing.T) {
 	}
 	ss, _ = b.List()
 	for _, s := range ss {
-		if s.Name == "old-one" && (s.Status == status.Detached || s.WindowID == "") {
+		if s.Name == "old-one" && (s.Status.External() || s.WindowID == "") {
 			t.Errorf("old-one should be a tab now: %+v", s)
 		}
 	}
 
-	// killing a detached session with no tab is just nono stop
+	// killing a session with no tab is just nono stop
 	calls = nil
 	var other session.Session
 	for _, s := range ss {
@@ -215,11 +216,12 @@ func TestAdoptFailureShowsNonoError(t *testing.T) {
 	st := &state.State{Sessions: map[string]state.Meta{}}
 	b := &TmuxBackend{
 		Tmux: tc, State: st, StatePath: filepath.Join(tmp, "state.json"), Session: "perch",
-		Nono:  nono.Client{Run: func(context.Context, ...string) ([]byte, error) { return []byte("[]"), nil }},
-		Adopt: func(string) string { return `sh -c 'echo "session is attached elsewhere" >&2; exit 1'` },
-		Now:   func() time.Time { return time.Unix(1_800_000_000, 0) },
+		Nono:   nono.Client{Run: func(context.Context, ...string) ([]byte, error) { return []byte("[]"), nil }},
+		Adopt:  func(string) string { return `sh -c 'echo "session is attached elsewhere" >&2; exit 1'` },
+		Detach: func(string) string { return "true" },
+		Now:    func() time.Time { return time.Unix(1_800_000_000, 0) },
 	}
-	cmd, err := b.Attach(session.Session{Name: "old-one", Status: status.Detached})
+	cmd, err := b.Attach(session.Session{Name: "old-one", Status: status.Elsewhere})
 	if err == nil || cmd != nil {
 		t.Fatalf("want an error, got cmd=%v err=%v", cmd, err)
 	}
@@ -245,8 +247,7 @@ func TestAttachedElsewhereIsDetachedFirst(t *testing.T) {
 	})
 	tmp := t.TempDir()
 	marker := filepath.Join(tmp, "order")
-	ps := `[{"name":"busy","session_id":"11","status":"running","attachment":"attached"},
-	        {"name":"free","session_id":"22","status":"running","attachment":"detached"}]`
+	ps := `[{"name":"busy","session_id":"11","status":"running","attachment":"attached"}]`
 	b := &TmuxBackend{
 		Tmux: tc, State: &state.State{Sessions: map[string]state.Meta{}}, StatePath: filepath.Join(tmp, "state.json"), Session: "perch",
 		Nono:   nono.Client{Run: func(context.Context, ...string) ([]byte, error) { return []byte(ps), nil }},
@@ -255,33 +256,30 @@ func TestAttachedElsewhereIsDetachedFirst(t *testing.T) {
 		Now:    func() time.Time { return time.Unix(1_800_000_000, 0) },
 	}
 	ss, err := b.List()
-	if err != nil || len(ss) != 2 {
+	if err != nil || len(ss) != 1 {
 		t.Fatalf("%v %v", ss, err)
 	}
-	by := map[string]session.Session{ss[0].Name: ss[0], ss[1].Name: ss[1]}
-	if by["busy"].Status != status.Elsewhere || by["free"].Status != status.Detached {
-		t.Fatalf("statuses: busy=%v free=%v", by["busy"].Status, by["free"].Status)
+	by := map[string]session.Session{ss[0].Name: ss[0]}
+	if by["busy"].Status != status.Elsewhere {
+		t.Fatalf("status: busy=%v", by["busy"].Status)
 	}
 	if p := b.Preview(by["busy"]); !strings.Contains(p, "detaches it there") {
 		t.Errorf("preview = %q", p)
 	}
 
-	if _, err := b.Attach(by["free"]); err != nil { // already free: no detach step
-		t.Fatal(err)
-	}
 	if _, err := b.Attach(by["busy"]); err != nil {
 		t.Fatal(err)
 	}
 	var got []byte
 	for i := 0; i < 40; i++ {
 		got, _ = os.ReadFile(marker)
-		if strings.Count(string(got), "\n") >= 3 {
+		if strings.Count(string(got), "\n") >= 2 {
 			break
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	if string(got) != "attach-free\ndetach-busy\nattach-busy\n" {
-		t.Errorf("order = %q (busy must be detached before it is attached; free must not be detached)", got)
+	if string(got) != "detach-busy\nattach-busy\n" {
+		t.Errorf("order = %q (busy must be detached before it is attached)", got)
 	}
 }
 

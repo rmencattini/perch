@@ -410,7 +410,6 @@ var (
 	descSty   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#7A7474", Dark: "#9C9494"})
 	sepSty    = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#DDDADA", Dark: "#3C3C3C"})
 	stSty     = map[status.Status]lipgloss.Style{
-		status.Detached:   lipgloss.NewStyle().Foreground(lipgloss.Color("6")),
 		status.Elsewhere:  lipgloss.NewStyle().Foreground(lipgloss.Color("6")),
 		status.Running:    lipgloss.NewStyle().Foreground(lipgloss.Color("#51bd73")),
 		status.NeedsInput: lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true),

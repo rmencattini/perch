@@ -27,7 +27,7 @@ type Backend interface {
 	Preview(s session.Session) string
 	// Diff is the uncommitted change in the session's folder ("" when there is none).
 	Diff(s session.Session) string
-	// Attach selects the window (adopting a detached nono session first) and returns the attach command.
+	// Attach selects the window (adopting an external nono session first) and returns the attach command.
 	Attach(s session.Session) (*exec.Cmd, error)
 	Kill(s session.Session) error
 
@@ -67,7 +67,7 @@ type TmuxBackend struct {
 	// Launch builds the shell command of a window. nil = the nono command line.
 	// Tests replace it so they never start a real nono or claude.
 	Launch func(nono.Spec) string
-	// Adopt builds the shell command that brings a detached nono session into
+	// Adopt builds the shell command that brings an external nono session into
 	// a tab. nil = `nono attach <name>`. Tests replace it.
 	Adopt func(name string) string
 	// Detach builds the command that releases a session from the terminal
@@ -102,9 +102,9 @@ func (b *TmuxBackend) DetachHint() string {
 	return b.hint
 }
 
-// detached lists running nono sessions that have no tab: sessions started
-// outside perch, or detached from it. nono ps errors are not fatal.
-func (b *TmuxBackend) detached(inTabs map[string]bool) []session.Session {
+// external lists running nono sessions that have no tab: sessions started
+// outside perch. nono ps errors are not fatal.
+func (b *TmuxBackend) external(inTabs map[string]bool) []session.Session {
 	if b.psAt.IsZero() || b.now().Sub(b.psAt) >= psEvery {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -122,11 +122,8 @@ func (b *TmuxBackend) detached(inTabs map[string]bool) []session.Session {
 		if !e.Live() || name == "" || inTabs[name] || inTabs[e.ID] {
 			continue
 		}
-		st := status.Detached
-		if a := strings.ToLower(e.Attachment); a != "" && !strings.Contains(a, "detach") {
-			st = status.Elsewhere // attached in another terminal: perch must take it over
-		}
-		out = append(out, session.Session{Name: name, NonoID: e.ID, Status: st})
+		// attached in another terminal: perch must take it over
+		out = append(out, session.Session{Name: name, NonoID: e.ID, Status: status.Elsewhere})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
@@ -294,13 +291,11 @@ func (b *TmuxBackend) List() ([]session.Session, error) {
 	for _, s := range ss {
 		inTabs[s.Name] = true
 	}
-	return append(ss, b.detached(inTabs)...), nil
+	return append(ss, b.external(inTabs)...), nil
 }
 
 func (b *TmuxBackend) Preview(s session.Session) string {
 	switch s.Status {
-	case status.Detached:
-		return "detached nono session\nid: " + s.NonoID + "\n\nenter brings it into a perch tab and attaches."
 	case status.Elsewhere:
 		return "nono session attached in another terminal tab\nid: " + s.NonoID + "\n\nenter detaches it there (nono detach), then attaches it here."
 	}
@@ -311,7 +306,7 @@ func (b *TmuxBackend) Preview(s session.Session) string {
 	return out
 }
 
-// adopt gives a detached nono session a tmux window running `nono attach`.
+// adopt gives an external nono session a tmux window running `nono attach`.
 func (b *TmuxBackend) adopt(s session.Session) (string, error) {
 	target := s.Name
 	inner := "nono attach " + shellWord(target)
@@ -326,8 +321,9 @@ func (b *TmuxBackend) adopt(s session.Session) (string, error) {
 		}
 		inner = "{ " + detach + " >/dev/null 2>&1; sleep 0.5; }; " + inner
 	}
-	// A failing nono attach must leave its message in the pane long enough to be read.
-	cmd := inner + ` || { printf '\n` + attachFailed + ` (exit %s)\n' "$?"; sleep 3; }`
+	// A nono attach that fails, or ends within 2s even with status 0 (session
+	// already over), must leave its status in the pane long enough to be read.
+	cmd := `t=$SECONDS; ` + inner + `; rc=$?; if [ "$rc" -ne 0 ] || [ $((SECONDS - t)) -lt 2 ]; then printf '\n` + attachFailed + ` (exit %s)\n' "$rc"; sleep 3; fi`
 	dir, _ := os.UserHomeDir()
 	id, err := b.newWindow(s.Name, dir, cmd)
 	if err != nil {
@@ -393,11 +389,15 @@ func (b *TmuxBackend) Kill(s session.Session) error {
 	if strings.HasPrefix(s.Command, "nono ") || s.Status.External() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
-		if err := b.Nono.Stop(ctx, s.Name); err != nil {
+		target, err := b.stopTarget(ctx, s)
+		if err != nil {
+			return err
+		}
+		if err := b.Nono.Stop(ctx, target); err != nil {
 			return err
 		}
 	}
-	if s.WindowID == "" { // detached: nono stop was the whole job
+	if s.WindowID == "" { // no tab: nono stop was the whole job
 		return nil
 	}
 	if err := b.Tmux.KillWindow(s.WindowID); err != nil {

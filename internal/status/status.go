@@ -13,15 +13,14 @@ const (
 	Idle Status = iota
 	Running
 	NeedsInput
-	Detached  // a nono session that is not in a perch tab yet
-	Elsewhere // a nono session attached in another terminal tab
+	Elsewhere // a nono session attached in another terminal tab, with no perch tab
 )
 
 // TailLines is how many pane lines Detect looks at.
 const TailLines = 25
 
 // External reports a nono session that has no perch tab yet.
-func (s Status) External() bool { return s == Detached || s == Elsewhere }
+func (s Status) External() bool { return s == Elsewhere }
 
 // Symbol is readable without color.
 func (s Status) Symbol() string {
@@ -30,8 +29,6 @@ func (s Status) Symbol() string {
 		return "●"
 	case NeedsInput:
 		return "!"
-	case Detached:
-		return "◌"
 	case Elsewhere:
 		return "◐"
 	default:
@@ -45,8 +42,6 @@ func (s Status) String() string {
 		return "running"
 	case NeedsInput:
 		return "needs input"
-	case Detached:
-		return "detached"
 	case Elsewhere:
 		return "other tab"
 	default:

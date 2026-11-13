@@ -32,7 +32,7 @@ func TestDetect(t *testing.T) {
 }
 
 func TestSymbols(t *testing.T) {
-	want := map[Status]string{Running: "● running", NeedsInput: "! needs input", Idle: "○ idle", Detached: "◌ detached", Elsewhere: "◐ other tab"}
+	want := map[Status]string{Running: "● running", NeedsInput: "! needs input", Idle: "○ idle", Elsewhere: "◐ other tab"}
 	for s, w := range want {
 		if got := s.Symbol() + " " + s.String(); got != w {
 			t.Errorf("got %q, want %q", got, w)

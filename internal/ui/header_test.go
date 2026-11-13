@@ -67,12 +67,12 @@ func TestPreviewKeepsNewestLines(t *testing.T) {
 	}
 }
 
-func TestDetachedRowAndHint(t *testing.T) {
+func TestOtherTabRowAndHint(t *testing.T) {
 	f := newFake()
-	ss := append(f.sessions, session.Session{Name: "old-one", Status: status.Detached})
+	ss := append(f.sessions, session.Session{Name: "old-one", Status: status.Elsewhere})
 	m := drive(New(f), refreshMsg{sessions: ss, selected: "old-one", hint: "ctrl-a d"})
 	v := m.View()
-	for _, want := range []string{"◌ old-one", "detached", "enter attach (ctrl-a d back)"} {
+	for _, want := range []string{"◐ old-one", "other tab", "enter attach (ctrl-a d back)"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("view missing %q:\n%s", want, v)
 		}

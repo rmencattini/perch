@@ -17,7 +17,7 @@ type Session struct {
 	Created  int64
 	WindowID string
 	Status   status.Status
-	NonoID   string // set for detached nono sessions that have no tmux window yet
+	NonoID   string // set for external nono sessions that have no tmux window yet
 }
 
 // Tail returns the pane tail for a window id.
