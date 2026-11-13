@@ -26,11 +26,8 @@ type Backend interface {
 	Preview(s session.Session) string
 	// Diff is the uncommitted change in the session's folder ("" when there is none).
 	Diff(s session.Session) string
-	// Attach reopens a closed tab, selects the window and returns the attach command.
+	// Attach selects the window (adopting a detached nono session first) and returns the attach command.
 	Attach(s session.Session) (*exec.Cmd, error)
-	CloseTab(name string) error
-	// ReopenLast returns the reopened name, or "" when nothing was closed.
-	ReopenLast() (string, error)
 	Kill(s session.Session) error
 
 	Usage() usage.Summary
@@ -362,29 +359,10 @@ func (b *TmuxBackend) Attach(s session.Session) (*exec.Cmd, error) {
 		}
 		s.WindowID = id
 	}
-	if b.State.IsClosed(s.Name) {
-		b.State.Reopen(s.Name)
-		if err := b.save(); err != nil {
-			return nil, err
-		}
-	}
 	if err := b.Tmux.SelectWindow(s.WindowID); err != nil {
 		return nil, err
 	}
 	return b.Tmux.AttachCmd(b.Session), nil
-}
-
-func (b *TmuxBackend) CloseTab(name string) error {
-	b.State.CloseTab(name)
-	return b.save()
-}
-
-func (b *TmuxBackend) ReopenLast() (string, error) {
-	name, ok := b.State.ReopenLast()
-	if !ok {
-		return "", nil
-	}
-	return name, b.save()
 }
 
 // Kill is the only action that stops a session. nono stop runs only for

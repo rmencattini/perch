@@ -31,7 +31,6 @@ type fakeBackend struct {
 	created   []NewRequest
 	createErr error
 	sessions  []session.Session
-	closed    []string
 	killed    []string
 	attached  []string
 }
@@ -40,13 +39,6 @@ func (f *fakeBackend) List() ([]session.Session, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := append([]session.Session(nil), f.sessions...)
-	for i := range out {
-		for _, c := range f.closed {
-			if out[i].Name == c {
-				out[i].Status = status.TabClosed
-			}
-		}
-	}
 	return out, nil
 }
 
@@ -59,24 +51,6 @@ func (f *fakeBackend) Attach(s session.Session) (*exec.Cmd, error) {
 	defer f.mu.Unlock()
 	f.attached = append(f.attached, s.Name)
 	return exec.Command("true"), nil
-}
-
-func (f *fakeBackend) CloseTab(name string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.closed = append(f.closed, name)
-	return nil
-}
-
-func (f *fakeBackend) ReopenLast() (string, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.closed) == 0 {
-		return "", nil
-	}
-	n := f.closed[len(f.closed)-1]
-	f.closed = f.closed[:len(f.closed)-1]
-	return n, nil
 }
 
 func (f *fakeBackend) Kill(s session.Session) error {
@@ -206,22 +180,6 @@ func TestTogglePreview(t *testing.T) {
 	}
 }
 
-func TestCloseAndReopen(t *testing.T) {
-	f := newFake()
-	tm := start(t, f)
-	waitFor(t, tm, "pane of alpha")
-	key(tm, "x")
-	waitFor(t, tm, "⊘ alpha")
-	key(tm, "o")
-	waitFor(t, tm, "reopened alpha")
-	key(tm, "o")
-	waitFor(t, tm, "no closed tab to reopen")
-	quit(t, tm)
-	if len(f.closed) != 0 {
-		t.Errorf("closed = %v", f.closed)
-	}
-}
-
 func TestEnterAttaches(t *testing.T) {
 	f := newFake()
 	tm := start(t, f)
@@ -323,14 +281,8 @@ func TestTmuxBackend(t *testing.T) {
 		t.Fatalf("plain status = %v", byName["plain"].Status)
 	}
 
-	if err := b.CloseTab("plain"); err != nil {
-		t.Fatal(err)
-	}
-	if ss, _ = b.List(); !hasStatus(ss, "plain", status.TabClosed) {
-		t.Error("plain should be tab closed")
-	}
-	if cmd, err := b.Attach(byName["plain"]); err != nil || cmd == nil || st.IsClosed("plain") {
-		t.Errorf("attach should reopen: %v closed=%v", err, st.IsClosed("plain"))
+	if cmd, err := b.Attach(byName["plain"]); err != nil || cmd == nil {
+		t.Errorf("attach: %v", err)
 	}
 
 	if err := b.Kill(byName["boxed"]); err != nil {
@@ -348,15 +300,6 @@ func TestTmuxBackend(t *testing.T) {
 	if ss, _ = b.List(); len(ss) != 0 {
 		t.Errorf("windows left: %v", ss)
 	}
-}
-
-func hasStatus(ss []session.Session, name string, st status.Status) bool {
-	for _, s := range ss {
-		if s.Name == name && s.Status == st {
-			return true
-		}
-	}
-	return false
 }
 
 func tea_size(w, h int) tea.Msg { return tea.WindowSizeMsg{Width: w, Height: h} }

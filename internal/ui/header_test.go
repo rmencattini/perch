@@ -77,8 +77,4 @@ func TestDetachedRowAndHint(t *testing.T) {
 			t.Errorf("view missing %q:\n%s", want, v)
 		}
 	}
-	m = drive(m, typ("x"))
-	if !strings.Contains(m.View(), "has no tab yet") {
-		t.Error("x on a detached row should explain itself")
-	}
 }

@@ -21,7 +21,6 @@ type Meta struct {
 }
 
 type State struct {
-	Closed   []string        `json:"closed"` // tab-closed sessions, oldest first
 	Recent   []string        `json:"recent"` // recent folders, newest first
 	Sessions map[string]Meta `json:"sessions"`
 }
@@ -80,43 +79,6 @@ func (s *State) Save(path string) error {
 	return os.Rename(tmp.Name(), path)
 }
 
-func (s *State) IsClosed(name string) bool {
-	for _, n := range s.Closed {
-		if n == name {
-			return true
-		}
-	}
-	return false
-}
-
-// CloseTab marks name as tab-closed. The session itself keeps running.
-func (s *State) CloseTab(name string) {
-	if !s.IsClosed(name) {
-		s.Closed = append(s.Closed, name)
-	}
-}
-
-// Reopen removes name from Closed.
-func (s *State) Reopen(name string) {
-	out := s.Closed[:0]
-	for _, n := range s.Closed {
-		if n != name {
-			out = append(out, n)
-		}
-	}
-	s.Closed = out
-}
-
-// ReopenLast reopens the most recently closed tab.
-func (s *State) ReopenLast() (string, bool) {
-	if len(s.Closed) == 0 {
-		return "", false
-	}
-	name := s.Closed[len(s.Closed)-1]
-	s.Closed = s.Closed[:len(s.Closed)-1]
-	return name, true
-}
-
 // AddRecent puts dir first, dropping duplicates and old entries.
 func (s *State) AddRecent(dir string) {
 	out := []string{dir}
@@ -130,6 +92,5 @@ func (s *State) AddRecent(dir string) {
 
 // Forget drops everything about a killed session.
 func (s *State) Forget(name string) {
-	s.Reopen(name)
 	delete(s.Sessions, name)
 }

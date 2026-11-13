@@ -16,10 +16,8 @@ Needs `tmux` and `nono` on your PATH.
 | Key | Does |
 |---|---|
 | `j` `k` / arrows | move |
-| `enter` | attach (your tmux prefix + `d` returns to perch; in tmux it opens a popup). On a closed row: reopen + attach |
+| `enter` | attach (your tmux prefix + `d` returns to perch; in tmux it opens a popup). |
 | `n` | new session dialog |
-| `x` | close the tab. The session **keeps running** |
-| `o` | reopen the last closed tab |
 | `K` | kill: asks, then `nono stop <name>` and drops the window. Only this stops a session |
 | `tab` | switch the panel between Preview and Diff |
 | `b` | show / hide the panel |
@@ -30,11 +28,11 @@ Mouse: click a row to select it.
 ## Panel: Preview and Diff
 
 The right panel has two tabs. **Preview** is the live pane. **Diff** is `git diff HEAD` of the session folder plus its untracked files (first 400 lines).
-A session that is idle or whose tab is closed opens on **Diff**, since its pane has nothing new. A running one opens on Preview. `tab` overrides this.
+An idle session opens on **Diff**, since its pane has nothing new. A running one opens on Preview. `tab` overrides this.
 A folder that is not a git repo shows "no changes".
 
 Status symbols (readable without color):
-`●` running · `!` needs input · `○` idle · `⊘` tab closed · `◌` detached · `◐` attached in another terminal tab
+`●` running · `!` needs input · `○` idle · `◌` detached · `◐` attached in another terminal tab
 
 ## Existing and detached sessions
 
@@ -78,7 +76,7 @@ Already have a statusLine? Keep it and let perch listen:
 
 | Path | What |
 |---|---|
-| `~/.config/perch/state.json` | closed tabs, recent folders, session info. No secrets |
+| `~/.config/perch/state.json` | recent folders, session info. No secrets |
 | `~/.cache/perch/usage/` | rate-limit snapshots |
 | `~/git/worktrees/<repo>/<branch>` | worktrees |
 

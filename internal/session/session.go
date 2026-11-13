@@ -25,7 +25,6 @@ type Tail func(windowID string) string
 
 // Join builds the session list. Order: creation time, then name.
 // Windows with a dead pane are skipped: the process is gone, nothing to manage.
-// A closed tab keeps its window and shows TabClosed instead of a live status.
 func Join(windows []tmux.Window, st *state.State, tail Tail) []Session {
 	var out []Session
 	for _, w := range windows {
@@ -37,11 +36,7 @@ func Join(windows []tmux.Window, st *state.State, tail Tail) []Session {
 			Name: w.Name, Dir: m.Dir, Profile: m.Profile, Command: m.Command,
 			Created: m.Created, WindowID: w.ID,
 		}
-		if st.IsClosed(w.Name) {
-			s.Status = status.TabClosed
-		} else {
-			s.Status = status.Detect(tail(w.ID))
-		}
+		s.Status = status.Detect(tail(w.ID))
 		out = append(out, s)
 	}
 	sort.SliceStable(out, func(i, j int) bool {

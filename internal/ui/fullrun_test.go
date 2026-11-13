@@ -6,8 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// One session through the whole program loop: create, navigate, close,
-// reopen, hide the preview, kill, quit.
+// One session through the whole program loop: create, navigate, hide the preview, kill, quit.
 func TestFullRun(t *testing.T) {
 	f := newFake()
 	f.defDir = t.TempDir()
@@ -22,10 +21,6 @@ func TestFullRun(t *testing.T) {
 
 	key(tm, "k") // delta is selected: step up to gamma
 	waitFor(t, tm, "diff of gamma")
-	key(tm, "x")
-	waitFor(t, tm, "⊘ gamma")
-	key(tm, "o")
-	waitFor(t, tm, "reopened gamma")
 
 	key(tm, "b")
 	key(tm, "j") // delta

@@ -14,7 +14,6 @@ func TestJoin(t *testing.T) {
 		"a": {Dir: "/a", Created: 1},
 		"c": {Created: 3},
 	}}
-	st.CloseTab("c")
 	ws := []tmux.Window{
 		{ID: "@1", Name: "b"}, {ID: "@2", Name: "a"}, {ID: "@3", Name: "c"},
 		{ID: "@4", Name: "dead", Dead: true}, {ID: "@5", Name: "stranger"},
@@ -29,7 +28,7 @@ func TestJoin(t *testing.T) {
 		{"stranger", status.Idle}, // no state: Created 0 sorts first
 		{"a", status.Running},
 		{"b", status.NeedsInput},
-		{"c", status.TabClosed}, // closed beats live status
+		{"c", status.Running},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %d sessions: %+v", len(got), got)

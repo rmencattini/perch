@@ -265,29 +265,6 @@ func (m Model) onKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if s, ok := m.selected(); ok {
 			return m, m.attach(s)
 		}
-	case "x":
-		s, ok := m.selected()
-		switch {
-		case !ok:
-		case s.Status == status.TabClosed:
-			m.msg, m.msgErr = s.Name+" is already closed", false
-		case s.Status.External():
-			m.msg, m.msgErr = s.Name+" has no tab yet (enter adopts it)", false
-		default:
-			return m, m.act("closed tab "+s.Name+" (still running)", func() error { return m.b.CloseTab(s.Name) })
-		}
-	case "o":
-		b := m.b
-		return m, func() tea.Msg {
-			name, err := b.ReopenLast()
-			switch {
-			case err != nil:
-				return doneMsg{err: err}
-			case name == "":
-				return doneMsg{text: "no closed tab to reopen"}
-			}
-			return doneMsg{text: "reopened " + name}
-		}
 	case "K":
 		if _, ok := m.selected(); ok {
 			m.confirmKill = true
@@ -435,7 +412,6 @@ var (
 		status.Running:    lipgloss.NewStyle().Foreground(lipgloss.Color("#51bd73")),
 		status.NeedsInput: lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true),
 		status.Idle:       lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")),
-		status.TabClosed:  lipgloss.NewStyle().Faint(true),
 	}
 )
 
@@ -659,7 +635,7 @@ func (m Model) diffTab(s session.Session) bool {
 	if m.tabSet {
 		return m.tab == 1
 	}
-	return s.Status == status.Idle || s.Status == status.TabClosed
+	return s.Status == status.Idle
 }
 
 var (
@@ -747,7 +723,7 @@ func (m Model) keyBar() string {
 	}
 	return m.hintBar(
 		[]keyHint{{"n", "new"}, {"K", "kill"}},
-		[]keyHint{{"enter", enter}, {"x", "close"}, {"o", "reopen"}},
+		[]keyHint{{"enter", enter}},
 		[]keyHint{{"tab", "diff"}, {"b", "panel"}, {"q", "quit"}})
 }
 

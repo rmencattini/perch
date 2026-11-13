@@ -13,7 +13,6 @@ const (
 	Idle Status = iota
 	Running
 	NeedsInput
-	TabClosed
 	Detached  // a nono session that is not in a perch tab yet
 	Elsewhere // a nono session attached in another terminal tab
 )
@@ -31,8 +30,6 @@ func (s Status) Symbol() string {
 		return "●"
 	case NeedsInput:
 		return "!"
-	case TabClosed:
-		return "⊘"
 	case Detached:
 		return "◌"
 	case Elsewhere:
@@ -48,8 +45,6 @@ func (s Status) String() string {
 		return "running"
 	case NeedsInput:
 		return "needs input"
-	case TabClosed:
-		return "tab closed"
 	case Detached:
 		return "detached"
 	case Elsewhere:
