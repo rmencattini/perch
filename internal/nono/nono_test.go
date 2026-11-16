@@ -19,6 +19,9 @@ func TestParseProfilesReal(t *testing.T) {
 	if len(ps) != 12 {
 		t.Fatalf("got %d profiles, want 12", len(ps))
 	}
+	if ps[0].Source != "user" {
+		t.Errorf("first profile = %+v, want the user one", ps[0])
+	}
 	var found bool
 	for _, p := range ps {
 		if p.Name == "nolabs-ai/claude" {

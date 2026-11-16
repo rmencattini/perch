@@ -3,6 +3,7 @@ package session
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/rmencattini/perch/internal/state"
 	"github.com/rmencattini/perch/internal/status"
@@ -25,6 +26,7 @@ type Tail func(windowID string) string
 
 // Join builds the session list. Order: creation time, then name.
 // Windows with a dead pane are skipped: the process is gone, nothing to manage.
+// Windows that do not run a nono session (plain tmux tabs) are skipped too.
 func Join(windows []tmux.Window, st *state.State, tail Tail) []Session {
 	var out []Session
 	for _, w := range windows {
@@ -32,6 +34,9 @@ func Join(windows []tmux.Window, st *state.State, tail Tail) []Session {
 			continue
 		}
 		m := st.Sessions[w.Name]
+		if !strings.Contains(m.Command, "nono") {
+			continue
+		}
 		s := Session{
 			Name: w.Name, Dir: m.Dir, Profile: m.Profile, Command: m.Command,
 			Created: m.Created, WindowID: w.ID,

@@ -2,10 +2,12 @@
 package nono
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -16,12 +18,16 @@ type Profile struct {
 	Extends     []string `json:"extends"`
 }
 
-// ParseProfiles reads the output of `nono profile list --json`.
+// ParseProfiles reads the output of `nono profile list --json`. User-made
+// profiles come first, then the rest in nono's order.
 func ParseProfiles(b []byte) ([]Profile, error) {
 	var ps []Profile
 	if err := json.Unmarshal(b, &ps); err != nil {
 		return nil, fmt.Errorf("nono: parse profile list: %w", err)
 	}
+	sort.SliceStable(ps, func(i, j int) bool {
+		return ps[i].Source == "user" && ps[j].Source != "user"
+	})
 	return ps, nil
 }
 
@@ -91,9 +97,17 @@ type Runner func(ctx context.Context, args ...string) ([]byte, error)
 
 // Exec runs the real nono.
 func Exec(ctx context.Context, args ...string) ([]byte, error) {
-	out, err := exec.CommandContext(ctx, "nono", args...).CombinedOutput()
+	// stdout only: nono's progress or warning lines on stderr would corrupt --json output.
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "nono", args...)
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
-		return out, fmt.Errorf("nono %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = strings.TrimSpace(string(out))
+		}
+		return out, fmt.Errorf("nono %s: %w: %s", strings.Join(args, " "), err, msg)
 	}
 	return out, nil
 }

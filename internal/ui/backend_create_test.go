@@ -137,7 +137,7 @@ func TestTmuxBackendExternalSessions(t *testing.T) {
 	        {"name":"inside","session_id":"bb22","status":"running"},
 	        {"name":"gone","session_id":"cc33","status":"exited"},
 	        {"session_id":"dd44","status":"running","attachment":"attached"}]`
-	st := &state.State{Sessions: map[string]state.Meta{}}
+	st := &state.State{Sessions: map[string]state.Meta{"inside": {Command: "nono run"}}}
 	b := &TmuxBackend{
 		Tmux: tc, State: st, StatePath: filepath.Join(tmp, "state.json"), Session: "perch",
 		Nono: nono.Client{Run: func(_ context.Context, a ...string) ([]byte, error) {
